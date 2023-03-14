@@ -10,7 +10,9 @@ import android.graphics.Canvas;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.VectorDrawable;
+import android.graphics.text.TextRunShaper;
 import android.location.LocationManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
@@ -51,6 +53,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -66,14 +71,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     IMapController mapController;
     private NavigationView navigationView;
 
-    public boolean canMoveMarker = true;
     private Handler mapOrientationHandler;
     private Handler distanceToEvHandler;
 
     private Handler locationUpdateHandler;
 
 
-    Drawable carMarkerIcon;
     ArrayList<Double> lat_route_gara = new ArrayList<Double>(Arrays.asList(47.14615, 47.14613, 47.14659, 47.14679, 47.14688, 47.14701, 47.14711, 47.1473, 47.14823, 47.15079, 47.15085, 47.1509, 47.15087, 47.1509, 47.15092, 47.15099, 47.15104, 47.15114, 47.15126, 47.15132, 47.15144, 47.15154, 47.15187, 47.15204, 47.1525, 47.15304, 47.15527, 47.15552, 47.15836, 47.15853, 47.15864, 47.15877, 47.16031, 47.16048, 47.16075, 47.16164, 47.16174, 47.16179, 47.16198, 47.16271, 47.16344, 47.16416, 47.1644, 47.16445, 47.1655, 47.16604, 47.16625, 47.16732, 47.16785, 47.16791, 47.16807, 47.16867, 47.16875, 47.16901, 47.16932, 47.16941, 47.1696, 47.16974, 47.16979, 47.16985, 47.16989, 47.16991, 47.1699, 47.16986, 47.16978, 47.1697, 47.16964, 47.16953, 47.16946, 47.16936, 47.16884, 47.16875, 47.16872, 47.16875, 47.16876, 47.16874, 47.16871, 47.16867, 47.16845, 47.16839, 47.16833, 47.1683, 47.1682, 47.1674, 47.16735, 47.16728, 47.16722, 47.1667, 47.16605, 47.16582, 47.16566, 47.16542, 47.16272, 47.16234, 47.16219, 47.16193, 47.1617, 47.16113, 47.16079, 47.16046, 47.16038, 47.16023, 47.16001, 47.15985, 47.15967, 47.15934, 47.15871, 47.15848, 47.15836, 47.15819, 47.15769, 47.15724, 47.15692, 47.15689, 47.1565, 47.15639, 47.1556, 47.1553, 47.15473, 47.15443, 47.15409, 47.15384, 47.15345, 47.15298, 47.15258, 47.15215, 47.15174, 47.15055, 47.15046, 47.15013, 47.15009, 47.14933, 47.14922, 47.14901, 47.14897, 47.14765, 47.14754, 47.14728, 47.14727, 47.14696, 47.14646, 47.14629, 47.14622, 47.14615));
     ArrayList<Double> lon_route_gara = new ArrayList<Double>(Arrays.asList(27.58479, 27.58495, 27.58497, 27.58495, 27.58492, 27.58482, 27.58467, 27.58415, 27.58491, 27.58707, 27.58717, 27.58731, 27.58751, 27.58766, 27.58773, 27.58785, 27.5879, 27.58795, 27.58795, 27.58792, 27.5878, 27.58778, 27.58806, 27.58819, 27.5884, 27.58869, 27.59012, 27.59028, 27.5921, 27.59217, 27.59217, 27.59213, 27.59133, 27.5914, 27.59173, 27.59465, 27.59494, 27.59508, 27.5949, 27.59444, 27.5935, 27.59194, 27.59122, 27.59115, 27.59046, 27.58828, 27.58739, 27.58329, 27.58116, 27.58093, 27.58051, 27.57896, 27.57875, 27.57822, 27.57745, 27.57727, 27.57705, 27.57705, 27.57702, 27.57695, 27.57686, 27.57672, 27.57655, 27.57646, 27.57638, 27.57634, 27.57634, 27.57639, 27.57627, 27.57621, 27.57617, 27.57612, 27.57592, 27.57548, 27.57486, 27.5748, 27.57479, 27.57481, 27.57581, 27.57606, 27.57608, 27.57612, 27.57595, 27.5745, 27.57434, 27.57407, 27.57385, 27.57259, 27.57091, 27.57125, 27.57135, 27.57149, 27.57302, 27.57321, 27.57326, 27.57331, 27.57331, 27.57319, 27.57305, 27.573, 27.57299, 27.57305, 27.57306, 27.57313, 27.57326, 27.5737, 27.57465, 27.57489, 27.57498, 27.57504, 27.57497, 27.57475, 27.57457, 27.57447, 27.57424, 27.57425, 27.5738, 27.57369, 27.57357, 27.57355, 27.57358, 27.57362, 27.57375, 27.57399, 27.5743, 27.57475, 27.57537, 27.57702, 27.57705, 27.57753, 27.57765, 27.57873, 27.5788, 27.57914, 27.5793, 27.58141, 27.58148, 27.58194, 27.58205, 27.58257, 27.58369, 27.58418, 27.58444, 27.58479));
 
@@ -87,24 +90,20 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     ArrayList<Double> lat_route_tatarasi = new ArrayList<Double>(Arrays.asList(47.15891, 47.159, 47.15948, 47.15982, 47.16006, 47.16015, 47.16014, 47.16017, 47.16021, 47.1601, 47.16, 47.15991, 47.15977, 47.15979, 47.1593, 47.15922, 47.15903, 47.15898, 47.15887, 47.1586, 47.15853, 47.15798, 47.15753, 47.15658, 47.15649, 47.15632, 47.15603, 47.15599, 47.1556, 47.15554, 47.15541, 47.15508, 47.15482, 47.15465, 47.1545, 47.15434, 47.15406, 47.15382, 47.15367, 47.15323, 47.1531, 47.15282, 47.15275, 47.15233, 47.15158, 47.15441, 47.15442, 47.15507, 47.15549, 47.15563, 47.1558, 47.15684, 47.15701, 47.15885, 47.15888));
     ArrayList<ArrayList<Double>> route_tatarasi = new ArrayList<ArrayList<Double>>(Arrays.asList(lat_route_tatarasi, lon_route_tatarasi));
 
-    ArrayList<simulatedEmergencyVehicle> ev_list = new ArrayList<>();
+    ArrayList<ArrayList<Object>> ev_list = new ArrayList<>();
     TextView searchBox;
     GeoPoint userCurrentPos;
 
     simulatedEmergencyVehicle ambulance_vehicle;
     simulatedEmergencyVehicle firetruck_vehicle;
     ConstraintLayout constraintLayout;
-    ConstraintLayout searchBoxConstraintLayout;
 
     simulatedEmergencyVehicle closestVehicle;
     Context context;
-
     TableLayout vehicleDetailsTable;
-
-    ArrayList<TextView> distanceTexts = new ArrayList<>();
-    ArrayList<TextView> locationTexts = new ArrayList<>();
-
     BottomSheetBehavior<LinearLayout> bottomSheetBehavior;
+
+    float currentMapAngle = 0f;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -129,7 +128,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         constraintSet.clone(constraintLayout);
         vehicleDetailsTable = findViewById(R.id.slideView_table);
         LinearLayout bottomSheet = findViewById(R.id.slideup_sheet);
-
+        ArrayList[] ev_car_data;
         map.setTileSource(TileSourceFactory.MAPNIK);
         map.setMultiTouchControls(true);
 
@@ -162,7 +161,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         mapOrientationHandler = new Handler();
         distanceToEvHandler = new Handler();
         locationUpdateHandler = new Handler();
-
+        ArrayList<ArrayList<View>> evList = new ArrayList<>();
         navigationView.setNavigationItemSelectedListener(this);
         floatingButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -183,13 +182,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     addActiveEmergencyToMap(firetruck_vehicle);
                 else if (count[0] == 1)
                     addActiveEmergencyToMap(ambulance_vehicle);
-                else if (count[0] >= 3) {
-                    try {
-                        System.out.println(getStreetName(ambulance_vehicle.getLocation()));
-                    } catch (Exception e) {
-                        System.out.println(e.getMessage());
-                    }
-                }
+
                 count[0]++;
             }
         });
@@ -256,30 +249,17 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
-
-    void updateEVList() {
-        vehicleDetailsTable.removeAllViews();
-        TextView noActiveEmergencies = findViewById(R.id.noActiveEmergencies);
-
-        if (ev_list.size() != 0) {
-            noActiveEmergencies.setVisibility(View.GONE);
-            for (int i = 0; i < ev_list.size(); i++) {
-                addActiveEmergencyToMap(ev_list.get(i));
-            }
-        } else {
-            noActiveEmergencies.setVisibility(View.GONE);
-        }
-    }
-
     @SuppressLint("SetTextI18n")
     void updateVehicleDistanceText(){
         userCurrentPos = locationOverlay.getMyLocation();
         TextView noActiveEmergencies = findViewById(R.id.noActiveEmergencies);
-        if (distanceTexts.size() != 0) {
-            noActiveEmergencies.setText(distanceTexts.size() +" emergencies in your area.");
-            for (int i = 0; i < distanceTexts.size(); i++) {
-                int dist = (int) distance(ev_list.get(i).getLocation(), userCurrentPos);
-                distanceTexts.get(i).setText("" + dist + " m");
+        if (ev_list.size() != 0) {
+            noActiveEmergencies.setText(ev_list.size() +" emergencies in your area.");
+            for (int i = 0; i < ev_list.size(); i++) {
+                simulatedEmergencyVehicle vehicle = (simulatedEmergencyVehicle)ev_list.get(i).get(0);
+                TextView distanceText = (TextView) ev_list.get(i).get(1);
+                int dist = (int) distance(vehicle.getLocation(), userCurrentPos);
+                distanceText.setText("" + dist + " m");
             }
         }else{
             noActiveEmergencies.setText("No emergencies in your area.");
@@ -288,7 +268,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     @SuppressLint("SetTextI18n")
     void addActiveEmergencyToMap(simulatedEmergencyVehicle vehicle) {
-        ev_list.add(vehicle);
         vehicle.draw();
 
         System.out.println("Added "+ vehicle.getType()+ " to slide panel");
@@ -318,19 +297,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         vehicleDistance.setId(View.generateViewId());
         vehicleIcon.setId(View.generateViewId());
         userCurrentPos = locationOverlay.getMyLocation();
-        distanceTexts.add(vehicleDistance);
-        locationTexts.add(vehicleLocation);
+        ArrayList<Object> vehicleData = new ArrayList<>();
+        vehicleData.add(vehicle);
+        vehicleData.add(vehicleDistance);
+        vehicleData.add(vehicleLocation);
+        ev_list.add(vehicleData);
+        updateVehicleDistanceText();
 
-        if (ev_list.size() != 0 && userCurrentPos != null) {
-            //System.out.println("updated text called");
-            updateVehicleDistanceText();
-        }
-
-    }
-
-
-    public String capitalize(String str){
-        return str.substring(0, 1).toUpperCase() + str.substring(1);
     }
 
     @Override
@@ -341,42 +314,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         stopLocationUpdate();
     }
 
-    float currentMapAngle = 0f;
-
     public static int convertDpToPixel(float dp, Context context) {
         return (int) (dp * ((float) context.getResources().getDisplayMetrics().densityDpi / DisplayMetrics.DENSITY_DEFAULT));
     }
 
     public static float convertPixelsToDp(float px, Context context) {
         return px / ((float) context.getResources().getDisplayMetrics().densityDpi / DisplayMetrics.DENSITY_DEFAULT);
-    }
-
-    String getStreetName(GeoPoint location) throws IOException, ExecutionException, InterruptedException {
-
-            FutureTask<String> futureTask = new FutureTask<>(new HttpRequests(location));
-
-            // start the thread
-            Thread thread = new Thread(futureTask);
-            thread.start();
-
-            String jsonResponse = futureTask.get();
-            // create an ObjectMapper instance to parse the JSON
-            ObjectMapper mapper = new ObjectMapper();
-
-            // parse the JSON response
-            JsonNode rootNode = mapper.readTree(jsonResponse);
-
-            // get the "address" field
-            JsonNode addressNode = rootNode.get("address");
-
-            JsonNode roadNode = addressNode.get("road");
-
-            // get the response from the Future object
-            if(roadNode != null) {
-                return roadNode.toString();
-            }else{
-                return "failed to read street";
-            }
     }
 
     Runnable mapOrientationChecker = new Runnable() {
@@ -396,14 +339,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     };
 
-    void startMapOrientation() {
-        mapOrientationChecker.run();
-    }
-
-    void stopMapOrientation() {
-        mapOrientationHandler.removeCallbacks(mapOrientationChecker);
-    }
-
     Runnable distanceToEVChecker = new Runnable() {
         @SuppressLint("SetTextI18n")
         @Override
@@ -412,10 +347,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             try {
                 if (ev_list != null && ev_list.size() != 0 && userCurrentPos != null) {
                     updateVehicleDistanceText();
-                    closestVehicle = ev_list.get(0);
+                    closestVehicle = (simulatedEmergencyVehicle) ev_list.get(0).get(0);
                     for (int i = 0; i < ev_list.size(); i++) {
-                        if (distance(ev_list.get(i).getLocation(), userCurrentPos) < distance(closestVehicle.getLocation(), userCurrentPos)) {
-                            closestVehicle = ev_list.get(i);
+                        simulatedEmergencyVehicle new_vehicle =(simulatedEmergencyVehicle) ev_list.get(i).get(0);
+                        if (distance(new_vehicle.getLocation(), userCurrentPos) < distance(closestVehicle.getLocation(), userCurrentPos)) {
+                            closestVehicle = (simulatedEmergencyVehicle) ev_list.get(i).get(0);
                         }
                         searchBox.setText("Closest vehicle: " + capitalize(closestVehicle.getType()) + " \n Distance: " + (int) distance(closestVehicle.getLocation(), userCurrentPos) +" m");
                     }
@@ -428,14 +364,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
         }
     };
-    void startdistanceToEVChecker() {
-        distanceToEVChecker.run();
-    }
-
-    void stopdistanceToEVChecker() {
-        distanceToEvHandler.removeCallbacks(distanceToEVChecker);
-    }
-
 
     Runnable locationUpdateRunnable = new Runnable() {
         int i = 0;
@@ -443,24 +371,24 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         @Override
         public void run() {
             try{
-                //System.out.println("nr: "+locationTexts.size());
-                //System.out.println("i: "+i);
-            if (locationTexts.size() != 0) {
-                if (i < locationTexts.size()) {
-                    String street = null;
-                    try {
-                        street = getStreetName(ev_list.get(i).getLocation());
-                    } catch (IOException | ExecutionException | InterruptedException e) {
-                        System.out.println(e.getMessage());
-                    }
-                    System.out.println("updated location for "+ev_list.get(i).getType());
-                    locationTexts.get(i).setText("Street: " + street);
-                    if(i+1 != locationTexts.size()){
-                        i++;
-                    }else{
-                        i = 0;
-                    }
-
+            if (ev_list.size() != 0) {
+                if (i < ev_list.size()) {
+                    simulatedEmergencyVehicle vehicle = (simulatedEmergencyVehicle)ev_list.get(i).get(0);
+                    System.out.println("Request location for "+ vehicle.getType() + " coord: "+ vehicle.getLocation());
+                    vehicle.getStreet(new simulatedEmergencyVehicle.StreetCallback() {
+                        @Override
+                        public void onStreetAvailable(String streetName) {
+                            // Use the street name here
+                            System.out.println("updated location for "+  vehicle.getType() + "it's location is: "+ streetName);
+                            TextView text = (TextView)ev_list.get(i).get(2);
+                            text.setText("Street: " + streetName);
+                            if(i+1 != ev_list.size()){
+                                i++;
+                            }else{
+                                i = 0;
+                            }
+                        }
+                    });
                 }
             }
 
@@ -480,7 +408,24 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         locationUpdateHandler.removeCallbacks(locationUpdateRunnable);
     }
 
+    void startdistanceToEVChecker() {
+        distanceToEVChecker.run();
+    }
 
+    void stopdistanceToEVChecker() {
+        distanceToEvHandler.removeCallbacks(distanceToEVChecker);
+    }
+
+    void startMapOrientation() {
+        mapOrientationChecker.run();
+    }
+
+    void stopMapOrientation() {
+        mapOrientationHandler.removeCallbacks(mapOrientationChecker);
+    }
+    public String capitalize(String str){
+        return str.substring(0, 1).toUpperCase() + str.substring(1);
+    }
     public void onResume() {
         super.onResume();
         //this will refresh the osmdroid configuration on resuming.

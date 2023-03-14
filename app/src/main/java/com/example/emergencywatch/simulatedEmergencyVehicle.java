@@ -10,12 +10,17 @@ import android.graphics.Matrix;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Icon;
+import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.view.animation.Interpolator;
 import android.view.animation.LinearInterpolator;
 
 import androidx.core.content.res.ResourcesCompat;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
@@ -24,6 +29,8 @@ import org.osmdroid.views.overlay.Polyline;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public class simulatedEmergencyVehicle extends Marker {
     ArrayList<Double> lat_route;
@@ -200,6 +207,29 @@ public class simulatedEmergencyVehicle extends Marker {
         else
             return new GeoPoint(0f,0f);
     }
+
+    public interface StreetCallback {
+        void onStreetAvailable(String streetName);
+    }
+
+    public void getStreet(StreetCallback callback) {
+        new HttpRequests(this.getLocation(), new HttpRequests.HttpListener() {
+            @Override
+            public void onHttpResponse(String response) throws JsonProcessingException {
+                // Handle the API response here
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode rootNode = mapper.readTree(response);
+                // get the "address" field
+                JsonNode addressNode = rootNode.get("address");
+                JsonNode roadNode = addressNode.get("road");
+                // Get the street name as a string and call the callback function
+                String streetName = roadNode.asText();
+                callback.onStreetAvailable(streetName);
+            }
+        }).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+    }
+
+
 
     public String getType(){
         return vehicleType;
