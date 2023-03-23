@@ -7,12 +7,14 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Point;
+import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.VectorDrawable;
-import android.graphics.text.TextRunShaper;
 import android.location.LocationManager;
-import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
@@ -20,6 +22,7 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -28,6 +31,7 @@ import android.widget.TableLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
@@ -45,21 +49,13 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.CustomZoomButtonsController;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener{
@@ -103,7 +99,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     TableLayout vehicleDetailsTable;
     BottomSheetBehavior<LinearLayout> bottomSheetBehavior;
 
+    GeoPoint simulatedUserStartLoc = new GeoPoint(47.14698676894605, 27.609202948507853);
+
+    SimulatedUser simulatedUser;
     float currentMapAngle = 0f;
+    @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -112,6 +112,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION, 102);
         checkPermission(Manifest.permission.INTERNET, 103);
         checkPermission(Manifest.permission.ACCESS_NETWORK_STATE, 104);
+        checkPermission(Manifest.permission.POST_NOTIFICATIONS, 105);
+        checkPermission(Manifest.permission.FOREGROUND_SERVICE, 106);
 
         Context ctx = getApplicationContext();
         Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
@@ -142,15 +144,15 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         mapController = map.getController();
         mapController.setZoom(15.5);
-        mapController.setCenter(new GeoPoint(0f, 0f));
+        mapController.setCenter(simulatedUserStartLoc);
 
         GpsMyLocationProvider provider = new GpsMyLocationProvider(this);
         provider.addLocationSource(LocationManager.NETWORK_PROVIDER);
-        locationOverlay = new MyLocationNewOverlay(provider, map);
-        locationOverlay.enableFollowLocation();
-        locationOverlay.runOnFirstFix(() -> Log.d("MyTag", String.format("First location fix: %s", locationOverlay.getLastFix())));
+        //locationOverlay = new MyLocationNewOverlay(provider, map);
+        //locationOverlay.enableFollowLocation();
+        //locationOverlay.runOnFirstFix(() -> Log.d("MyTag", String.format("First location fix: %s", locationOverlay.getLastFix())));
 
-        map.getOverlayManager().add(locationOverlay);
+        //map.getOverlayManager().add(locationOverlay);
         map.setMultiTouchControls(true);
         map.getZoomController().setVisibility(CustomZoomButtonsController.Visibility.NEVER);
 
@@ -182,7 +184,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     addActiveEmergencyToMap(firetruck_vehicle);
                 else if (count[0] == 1)
                     addActiveEmergencyToMap(ambulance_vehicle);
-
                 count[0]++;
             }
         });
@@ -190,7 +191,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         ambulance_vehicle = new simulatedEmergencyVehicle("police", route_gara, true, "#90EE90", this, map);
         firetruck_vehicle = new simulatedEmergencyVehicle("firetruck", route_sud, true, "#90EE90", this, map);
-        userCurrentPos = locationOverlay.getMyLocation();
+        //userCurrentPos = locationOverlay.getMyLocation();
 
 
         bottomSheetBehavior = BottomSheetBehavior.from(bottomSheet);
@@ -201,8 +202,66 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
         });
 
-    }
+        simulatedUser = new SimulatedUser(context,map, simulatedUserStartLoc);
+        map.getOverlays().add(simulatedUser);
 
+        map.setOnTouchListener(new View.OnTouchListener() {
+            private boolean markerSelected = false;
+            @SuppressLint("ClickableViewAccessibility")
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                GeoPoint mapOldLoc = (GeoPoint) map.getMapCenter();
+                double mapZoomOld = map.getZoomLevelDouble();
+                float lastX;
+                float lastY;
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    // Check if marker was selected
+                    Point screenPoint = new Point((int) event.getX(), (int) event.getY());
+                    GeoPoint markerLocation = simulatedUser.getPosition();
+                    Point markerPoint = map.getProjection().toPixels(markerLocation, null);
+                    int markerWidth = simulatedUser.getIcon().getIntrinsicWidth();
+                    int markerHeight = simulatedUser.getIcon().getIntrinsicHeight();
+
+                    RectF markerRect = new RectF(markerPoint.x - markerWidth/2f,
+                            markerPoint.y - markerHeight/2f,
+                            markerPoint.x + markerWidth/2f,
+                            markerPoint.y + markerHeight/2f);
+
+                    if (markerRect.contains(screenPoint.x, screenPoint.y)) {
+                        simulatedUser.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+                        markerSelected = true;
+                        lastX = event.getX();
+                        lastY = event.getY();
+                        return true;
+                    }
+                } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                    if (markerSelected) {
+                        // Move marker with finger
+                        simulatedUser.updateIconColor(Color.MAGENTA);
+                        GeoPoint point = (GeoPoint) map.getProjection().fromPixels((int) event.getX(), (int) event.getY());
+                        simulatedUser.setPosition(point);
+                        mapController.animateTo(point);
+                        // Remember last position
+                        lastX = event.getX();
+                        lastY = event.getY();
+
+                        return true;
+                    }
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    if (markerSelected) {
+                        // Change marker size back to normal
+                        simulatedUser.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+                        simulatedUser.setCurrentLocation(simulatedUser.getPosition());
+                        mapController.setZoom(mapZoomOld);
+                        mapController.setCenter(mapOldLoc);
+                        markerSelected = false;
+                        return true;
+                    }
+                }
+                return false;
+            }
+        });
+    }
     public Bitmap drawableToBitmap(Drawable drawable) {
         if (drawable instanceof BitmapDrawable) {
             return ((BitmapDrawable) drawable).getBitmap();
@@ -218,8 +277,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             throw new IllegalArgumentException("Unsupported drawable type");
         }
     }
-
-
     private static double distance(GeoPoint point1, GeoPoint point2) {
         try {
             double lat1 = point1.getLatitude();
@@ -235,30 +292,66 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 dist = Math.acos(dist);
                 dist = Math.toDegrees(dist);
                 dist = dist * 60 * 1.1515;
-                if ("m".equals("K")) {
-                    dist = dist * 1.609344;
-                } else if ("m".equals("N")) {
-                    dist = dist * 0.8684;
-                } else if ("m".equals("m")) {
-                    dist = (dist * 1.609344) * 1000;
-                }
+                dist = (dist * 1.609344) * 1000;
+
                 return (dist);
             }
         } catch (Exception e) {
             return 99999999;
         }
     }
+    ArrayList<simulatedEmergencyVehicle> notified_Stage1 = new ArrayList<>();
+    ArrayList<simulatedEmergencyVehicle> notified_Stage2 = new ArrayList<>();
+    ArrayList<simulatedEmergencyVehicle> notified_Stage3 = new ArrayList<>();
+    void checkIfNotify(simulatedEmergencyVehicle vehicle){
+        String vehicleStreet = vehicle.getStreetLoc();
+        double distanceToSimUser = distance(simulatedUser.getLocation(), vehicle.getLocation());
+        //System.out.println("Distance to sim user: " + distanceToSimUser);
+        if (distanceToSimUser > 1000) {
+            notified_Stage1.remove(vehicle);
+            notified_Stage2.remove(vehicle);
+            notified_Stage3.remove(vehicle);
+        }
+
+        // check if vehicle is approaching the user
+        double headingDiff = vehicle.getHeadingToPoint(simulatedUser.getLocation()) - vehicle.getHeading();
+        if (headingDiff > -20 && headingDiff < 20) {
+            //System.out.println(capitalize(vehicle.getType()) + " is approaching the simulated user location. Heading diff: "+headingDiff);
+            if(vehicle.getIconColor() != Color.GREEN)
+                vehicle.updateIconColor(Color.GREEN);
+            if (vehicleStreet != null) {
+                if (vehicleStreet.equals(simulatedUser.getStreetLoc())) {
+                    vehicle.updateIconColor(Color.BLUE);
+                    if (distanceToSimUser < 1000 && distanceToSimUser > 500 && !notified_Stage1.contains(vehicle)) {
+                        NormalNotification.showNotification(this, "EmergencyWatch Alerts", capitalize(vehicle.getType()) + " is less than 1000 meters away. Prepare to move over.", vehicle.getBitmapIcon());
+                        notified_Stage1.add(vehicle);
+                    } else if (distanceToSimUser < 500 && distanceToSimUser > 100 && !notified_Stage2.contains(vehicle)) {
+                        NormalNotification.showNotification(this, "EmergencyWatch Alerts", capitalize(vehicle.getType()) + " is less than 500 meters away. Prepare to move over.", vehicle.getBitmapIcon());
+                        notified_Stage2.add(vehicle);
+                    } else if (distanceToSimUser < 100 && !notified_Stage3.contains(vehicle)) {
+                        NormalNotification.showNotification(this, "EmergencyWatch Alerts", capitalize(vehicle.getType()) + " is right behind you. Move over immediately", vehicle.getBitmapIcon());
+                        notified_Stage3.add(vehicle);
+                    }
+                }
+            }
+        } else{
+            //System.out.println(capitalize(vehicle.getType()) + " is moving away from the simulated user location. Heading diff: "+headingDiff);
+            if(vehicle.getIconColor() != Color.RED)
+                vehicle.updateIconColor(Color.RED);
+        }
+    }
 
     @SuppressLint("SetTextI18n")
     void updateVehicleDistanceText(){
-        userCurrentPos = locationOverlay.getMyLocation();
+        userCurrentPos = simulatedUser.getLocation();
         TextView noActiveEmergencies = findViewById(R.id.noActiveEmergencies);
         if (ev_list.size() != 0) {
             noActiveEmergencies.setText(ev_list.size() +" emergencies in your area.");
             for (int i = 0; i < ev_list.size(); i++) {
                 simulatedEmergencyVehicle vehicle = (simulatedEmergencyVehicle)ev_list.get(i).get(0);
+                checkIfNotify(vehicle);
                 TextView distanceText = (TextView) ev_list.get(i).get(1);
-                int dist = (int) distance(vehicle.getLocation(), userCurrentPos);
+                int dist = (int) distance(vehicle.getLocation(), simulatedUser.getLocation()/*userCurrentPos*/);
                 distanceText.setText("" + dist + " m");
             }
         }else{
@@ -296,7 +389,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         vehicleType.setId(View.generateViewId());
         vehicleDistance.setId(View.generateViewId());
         vehicleIcon.setId(View.generateViewId());
-        userCurrentPos = locationOverlay.getMyLocation();
+        userCurrentPos = simulatedUser.getLocation();
         ArrayList<Object> vehicleData = new ArrayList<>();
         vehicleData.add(vehicle);
         vehicleData.add(vehicleDistance);
@@ -328,7 +421,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             try {
                 currentMapAngle = map.getMapOrientation();
                 if (currentMapAngle > 10f || currentMapAngle < -10f)
-                    mapController.animateTo(map.getMapCenter(), map.getZoomLevelDouble(), null, 0f);
+                    mapController.animateTo(userCurrentPos, map.getZoomLevelDouble(), null, 0f);
 
             } finally {
                 // 100% guarantee that this always happens, even if
@@ -343,7 +436,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         @SuppressLint("SetTextI18n")
         @Override
         public void run() {
-            userCurrentPos = locationOverlay.getMyLocation();
+            if(simulatedUser != null)
+                userCurrentPos = simulatedUser.getLocation();
+            else{
+                userCurrentPos = new GeoPoint(0f,0f);
+            }
             try {
                 if (ev_list != null && ev_list.size() != 0 && userCurrentPos != null) {
                     updateVehicleDistanceText();
@@ -354,7 +451,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                             closestVehicle = (simulatedEmergencyVehicle) ev_list.get(i).get(0);
                         }
                         searchBox.setText("Closest vehicle: " + capitalize(closestVehicle.getType()) + " \n Distance: " + (int) distance(closestVehicle.getLocation(), userCurrentPos) +" m");
-                    }
+                       }
                 }
             } finally {
                 // 100% guarantee that this always happens, even if
@@ -382,6 +479,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                             System.out.println("updated location for "+  vehicle.getType() + "it's location is: "+ streetName);
                             TextView text = (TextView)ev_list.get(i).get(2);
                             text.setText("Street: " + streetName);
+                            vehicle.setStreetLoc(streetName);
                             if(i+1 != ev_list.size()){
                                 i++;
                             }else{
@@ -435,7 +533,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         map.onResume(); //needed for compass, my location overlays, v6.0.0 and up
         Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this));
         //add
-        locationOverlay.enableMyLocation();
+        //locationOverlay.enableMyLocation();
     }
 
     public void onPause() {

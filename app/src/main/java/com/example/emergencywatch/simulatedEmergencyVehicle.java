@@ -7,6 +7,8 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Icon;
@@ -16,6 +18,7 @@ import android.os.SystemClock;
 import android.view.animation.Interpolator;
 import android.view.animation.LinearInterpolator;
 
+import androidx.core.content.ContextCompat;
 import androidx.core.content.res.ResourcesCompat;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -50,7 +53,12 @@ public class simulatedEmergencyVehicle extends Marker {
     boolean drawRouteToMap;
     ArrayList<ArrayList<Double>> routes;
 
+    String streetLoc;
+    double heading;
     String routesColor;
+
+    int iconColor;
+    double distanceToUser = 0;
     public simulatedEmergencyVehicle(String type, ArrayList<ArrayList<Double>> route, boolean drawRoute, String routeColor, Context context, MapView map) {
         super(map);
         lat_route = route.get(0);
@@ -84,6 +92,8 @@ public class simulatedEmergencyVehicle extends Marker {
         this.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
         carMarkerIcon = this.getIcon();
     }
+
+
 
     public void draw(){
         if (drawRouteToMap)
@@ -120,16 +130,48 @@ public class simulatedEmergencyVehicle extends Marker {
     public GeoPoint interpolate(float t, GeoPoint a, GeoPoint b) {
         return new GeoPointInterpolator.LinearFixed().interpolate(t, a, b);
     }
+
+    Bitmap bitmap;
     private Drawable flipDrawable(Drawable drawable) {
         Matrix matrix = new Matrix();
         matrix.preScale(-1.0f, 1.0f);
-        Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+        bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
         drawable.draw(canvas);
         Bitmap flippedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
         return new BitmapDrawable(localContext.getResources(), flippedBitmap);
     }
+
+    public void updateIconColor(int colorInt){
+        Drawable icon = getIcon();
+        icon.setColorFilter(new PorterDuffColorFilter(colorInt, PorterDuff.Mode.SRC_IN));
+        iconColor = colorInt;
+        this.setIcon(icon);
+    }
+    public int getIconColor(){return iconColor;}
+    public Bitmap getBitmapIcon(){return bitmap;}
+
+    public static double calculateHeading(GeoPoint currentPoint, GeoPoint futurePoint) {
+        if(currentPoint != null && futurePoint != null) {
+            double lat1 = currentPoint.getLatitude() * Math.PI / 180;
+            double lon1 = currentPoint.getLongitude() * Math.PI / 180;
+            double lat2 = futurePoint.getLatitude() * Math.PI / 180;
+            double lon2 = futurePoint.getLongitude() * Math.PI / 180;
+            double dLon = lon2 - lon1;
+            double y = Math.sin(dLon) * Math.cos(lat2);
+            double x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+            double heading = Math.atan2(y, x);
+            heading = Math.toDegrees(heading);
+            if (heading < 0) {
+                heading += 360;
+            }
+            return heading;
+        }else {
+            return 0;
+        }
+    }
+
     private void updateMarkerPos(int i, int n, int waitTime) {
         canMoveMarker = true;
         new Handler().postDelayed(new Runnable() {
@@ -137,10 +179,10 @@ public class simulatedEmergencyVehicle extends Marker {
             @Override
             public void run() {
                 if (i < n) {
-
                     GeoPoint futurePoint = new GeoPoint(lat_route.get(i + 1), lon_route.get(i + 1));
                     GeoPoint currentPoint = new GeoPoint(lat_route.get(i), lon_route.get(i));
                     currentLocation = currentPoint;
+                    heading = calculateHeading(currentPoint,futurePoint);
                     double orientation = lon_route.get(i) - lon_route.get(i + 1);
                     if (orientation > 0) {
                         carMarker.setIcon(flipDrawable(carMarkerIcon));
@@ -149,9 +191,9 @@ public class simulatedEmergencyVehicle extends Marker {
                     }
 
                     double distance = distance(currentPoint, futurePoint, "m");
-                    int speedKPH = 90;
+                    int speedKPH = 120;
                     int waittime_local = (int) (distance/(speedKPH/3.6)*1000);
-                    System.out.println("waittime: " + waittime_local);
+                    //System.out.println("waittime: " + waittime_local);
                     moveMarker(carMarker, currentPoint, futurePoint, waittime_local);
                     if (i + 2 == lat_route.size()) {
                         updateMarkerPos(0, n, waittime_local);
@@ -175,6 +217,7 @@ public class simulatedEmergencyVehicle extends Marker {
                 long elapsed = SystemClock.uptimeMillis() - startTime;
                 float t = interpolator.getInterpolation((float) ((float) elapsed / duration));
                 GeoPoint position = interpolate(t, currentPos, newPosition);
+                setCurrentLocation(position);
                 marker.setPosition(position);
 
                 if (t < 1.0) {
@@ -184,6 +227,9 @@ public class simulatedEmergencyVehicle extends Marker {
             }
         });
         canMoveMarker = true;
+    }
+    public double getDistanceToPoint(GeoPoint point){
+       return distance(getLocation(), point,"m");
     }
     public Polyline drawRoute(ArrayList<ArrayList<Double>> route, String colorString) {
 
@@ -223,20 +269,27 @@ public class simulatedEmergencyVehicle extends Marker {
                 JsonNode addressNode = rootNode.get("address");
                 JsonNode roadNode = addressNode.get("road");
                 // Get the street name as a string and call the callback function
-                String streetName = roadNode.asText();
-                callback.onStreetAvailable(streetName);
+                try {
+                    String streetName = roadNode.asText();
+                    callback.onStreetAvailable(streetName);
+                }catch (Exception e){
+                    System.out.println(e.getMessage());
+                }
             }
         }).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
-
-
     public String getType(){
         return vehicleType;
     }
-
     public Drawable getIcon(){
         return staticIcon;
     }
-
+    public double getHeading(){return heading;}
+    public void setCurrentLocation(GeoPoint location){currentLocation = location;}
+    void setStreetLoc(String streetName){streetLoc = streetName;}
+    public String getStreetLoc(){return streetLoc;}
+    public void setDistanceToUser(double value){distanceToUser = value;}
+    public double getDistanceToUser(){return distanceToUser;}
+    public double getHeadingToPoint(GeoPoint point){return calculateHeading(currentLocation, point);}
 }
