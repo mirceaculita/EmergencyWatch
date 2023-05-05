@@ -20,6 +20,9 @@ import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+
 
 public class SimulatedUser extends Marker {
 
@@ -44,7 +47,7 @@ public class SimulatedUser extends Marker {
     }
     public void getStreet(UserStreetCallback callback) {
 
-        new HttpRequests(this.getLocation(), new HttpRequests.HttpListener() {
+        new HttpRequests("location",new ArrayList<>(Arrays.asList(this.getLocation())),null, new HttpRequests.HttpListener() {
             @Override
             public void onHttpResponse(String response) throws JsonProcessingException {
                 // Handle the API response here
