@@ -1,16 +1,11 @@
 package com.example.emergencywatch;
 
-import android.Manifest;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.gson.Gson;
 
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -27,7 +22,6 @@ import android.preference.PreferenceManager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
-import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,19 +31,15 @@ import android.widget.LinearLayout;
 import android.widget.TableLayout;
 import android.widget.TextView;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
+import androidx.core.content.res.ResourcesCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 
 import com.bumptech.glide.Glide;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.google.android.material.navigation.NavigationView;
-import com.google.gson.reflect.TypeToken;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -67,10 +57,8 @@ import org.osmdroid.views.overlay.Polyline;
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
 //import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Objects;
 
 public class HomeFragment extends Fragment {
 
@@ -111,10 +99,15 @@ public class HomeFragment extends Fragment {
     TTSNotificationManager ttsNotificationManager;
     View view;
     Double destLat, destLon;
-
     Overlay activeRoute;
 
+    TextView emergencyActiveTitle;
+    TextView emergencyActiveInfo;
+    TextView noEmgTitlePanel;
 
+    Button settingsButton;
+
+    Button centerMapButton;
     public HomeFragment() {
         // Required empty public constructor
     }
@@ -128,6 +121,7 @@ public class HomeFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+        MainActivity mainActivity = (MainActivity) getActivity();
         view = inflater.inflate(R.layout.fragment_home, container, false);
 
         Context ctx = getContext();
@@ -135,18 +129,26 @@ public class HomeFragment extends Fragment {
         context = ctx;
 
         map = view.findViewById(R.id.map);
-        floatingButton = view.findViewById(R.id.menuButton);
+        //floatingButton = view.findViewById(R.id.menuButton);
         drawerLayout = view.findViewById(R.id.drawer_layout);
         searchBox = view.findViewById(R.id.searchBoxNav);
         constraintLayout = view.findViewById(R.id.constraintLayoutMapView);
         vehicleDetailsTable = view.findViewById(R.id.slideView_table);
         bottomSheet = view.findViewById(R.id.slideup_sheet);
+        emergencyActiveTitle = view.findViewById(R.id.slidePanel_title_activeEMG);
+        noEmgTitlePanel = view.findViewById(R.id.slidePanel_title_noEMG);
+        emergencyActiveInfo = view.findViewById(R.id.activeEmergencyInfo);
+        emergencyActiveTitle.setVisibility(View.INVISIBLE);
+        emergencyActiveInfo.setVisibility(View.INVISIBLE);
         TableLayout locationSuggestions;
         map.setTileSource(TileSourceFactory.MAPNIK);
         map.setMultiTouchControls(true);
         mapController = map.getController();
         mapController.setZoom(15.5);
         mapController.setCenter(simulatedUserStartLoc);
+        settingsButton = view.findViewById(R.id.settings_floating_button);
+        centerMapButton = view.findViewById(R.id.center_floating_button);
+
 
         final Handler mapUpdateHandler = new Handler();
         mapUpdateHandler.postDelayed(new Runnable() {
@@ -188,9 +190,9 @@ public class HomeFragment extends Fragment {
             count[0]++;
         });
 
-        floatingButton.setOnClickListener(view -> {
-            ((MainActivity) requireActivity()).openDrawer();
-        });
+        //floatingButton.setOnClickListener(view -> {
+          //  ((MainActivity) requireActivity()).openDrawer();
+        //});
 
 
         ambulance_vehicle = new simulatedEmergencyVehicle("police", route_gara, true, "#90EE90", context, map);
@@ -255,6 +257,22 @@ public class HomeFragment extends Fragment {
 
         ttsNotificationManager = new TTSNotificationManager(context);
 
+        settingsButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                assert mainActivity != null;
+                mainActivity.showSettings();
+            }
+        });
+
+        centerMapButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+               mapController.animateTo(simulatedUser.getLocation(), 18.0, 1500L);
+                //mapController.animateTo(simulatedUser.getLocation());
+            }
+        });
+
         searchBox.addTextChangedListener(new TextWatcher() {
             private Handler handler = new Handler();
             private Runnable runnable;
@@ -264,26 +282,41 @@ public class HomeFragment extends Fragment {
 
             }
 
+            @SuppressLint("SetTextI18n")
             @Override
             public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
                 locationSuggestions.removeAllViews();
+
+                if (charSequence.length() >= 3) {
+                    LayoutInflater inflater = LayoutInflater.from(view.getContext());
+                    View locationInfo = inflater.inflate(R.layout.location_data_list, locationSuggestions, false);
+                    locationInfo.setId(View.generateViewId());
+                    TextView locationName = locationInfo.findViewById(R.id.LocationName);
+                    locationName.setId(View.generateViewId());
+                    TextView locationAddress = locationInfo.findViewById(R.id.LocationAddress);
+                    locationAddress.setId(View.generateViewId());
+                    TextView locationDistance = locationInfo.findViewById(R.id.LocationDistance);
+                    locationDistance.setId(View.generateViewId());
+
+                    locationDistance.setText("");
+                    locationAddress.setText("");
+                    locationName.setText("Searching...");
+                    locationSuggestions.addView(locationInfo); // Add the view to the ViewGroup after setting the OnClickListener
+
+                }
+
 
                 handler.removeCallbacks(runnable); // Remove any previously scheduled runnable
                 runnable = new Runnable() {
                     @SuppressLint({"SetTextI18n", "DefaultLocale"})
                     @Override
                     public void run() {
-                        if (charSequence.length() >= 5) {
+                        if (charSequence.length() >= 3) {
                             System.out.println("am scris in textbox lmao ce nice");
                             getLocationSuggestions(locationsData -> {
-                                System.out.println(locationsData);
-                                int limit = 0;
-                                if(locationsData.size() > 6)
-                                    limit = 6;
-                                else
-                                    limit = locationsData.size();
-
-                                for(int j = 0; j<limit;j++){
+                                System.out.println(locationsData.size());
+                                if(locationsData.size() == 0){
+                                    locationSuggestions.removeAllViews();
                                     LayoutInflater inflater = LayoutInflater.from(view.getContext());
                                     View locationInfo = inflater.inflate(R.layout.location_data_list, locationSuggestions, false);
                                     locationInfo.setId(View.generateViewId());
@@ -293,54 +326,100 @@ public class HomeFragment extends Fragment {
                                     locationAddress.setId(View.generateViewId());
                                     TextView locationDistance = locationInfo.findViewById(R.id.LocationDistance);
                                     locationDistance.setId(View.generateViewId());
-
-
-                                    String[] locationDataExpanded = locationsData.get(j).get(2).split(",",2);
-                                    locationName.setText(locationDataExpanded[0]);
-
-                                    int lastCommaIndex = locationDataExpanded[1].lastIndexOf(",");
-                                    int secondToLastCommaIndex = locationDataExpanded[1].lastIndexOf(",", lastCommaIndex - 1);
-
-                                    String address = locationDataExpanded[1].substring(0, secondToLastCommaIndex);
-
-                                    locationAddress.setText(address);
-                                    double lat = Double.parseDouble(locationsData.get(j).get(0));
-                                    double lon = Double.parseDouble(locationsData.get(j).get(1));
-                                    double distanceToPOI = distance(new GeoPoint(lat,lon), simulatedUserStartLoc);
-                                    locationDistance.setText(String.format("%.2f km", distanceToPOI/1000));
-
-                                    final int index = j;
-                                    locationInfo.setOnClickListener(new View.OnClickListener() {
-                                        @Override
-                                        public void onClick(View v) {
-                                            System.out.println("Location details: " + locationsData.get(index));
-                                            destLat = Double.parseDouble(locationsData.get(index).get(0));
-                                            destLon = Double.parseDouble(locationsData.get(index).get(1));
-                                            getRoute(coordinates -> {
-                                                try {
-                                                    map.getOverlayManager().remove(activeRoute);
-                                                }catch (Exception e){
-                                                    //nope
-                                                }
-                                                activeRoute = drawRoute(coordinates, "#FFA500");
-                                                map.getOverlays().add(activeRoute);
-                                                mapController.animateTo(simulatedUser.getLocation());
-                                                mapController.zoomIn();
-
-                                            });
-                                            locationSuggestions.removeAllViews();
-                                        }
-                                    });
-
+                                    locationDistance.setText("");
+                                    locationAddress.setText("");
+                                    locationName.setText("No results found");
                                     locationSuggestions.addView(locationInfo); // Add the view to the ViewGroup after setting the OnClickListener
 
+                                }else {
+                                    int limit = 0;
+                                    if (locationsData.size() > 6)
+                                        limit = 6;
+                                    else
+                                        limit = locationsData.size();
+                                    locationSuggestions.removeAllViews();
+
+                                    for (int j = 0; j < limit; j++) {
+                                        LayoutInflater inflater = LayoutInflater.from(view.getContext());
+                                        View locationInfo = inflater.inflate(R.layout.location_data_list, locationSuggestions, false);
+                                        locationInfo.setId(View.generateViewId());
+                                        TextView locationName = locationInfo.findViewById(R.id.LocationName);
+                                        locationName.setId(View.generateViewId());
+                                        TextView locationAddress = locationInfo.findViewById(R.id.LocationAddress);
+                                        locationAddress.setId(View.generateViewId());
+                                        TextView locationDistance = locationInfo.findViewById(R.id.LocationDistance);
+                                        locationDistance.setId(View.generateViewId());
+
+
+                                        String[] locationDataExpanded = locationsData.get(j).get(2).split(",", 2);
+                                        locationName.setText(locationDataExpanded[0]);
+
+                                        int lastCommaIndex = locationDataExpanded[1].lastIndexOf(",");
+                                        int secondToLastCommaIndex = locationDataExpanded[1].lastIndexOf(",", lastCommaIndex - 1);
+
+                                        String address = locationDataExpanded[1].substring(0, secondToLastCommaIndex);
+
+                                        locationAddress.setText(address);
+                                        double lat = Double.parseDouble(locationsData.get(j).get(0));
+                                        double lon = Double.parseDouble(locationsData.get(j).get(1));
+                                        double distanceToPOI = distance(new GeoPoint(lat, lon), simulatedUserStartLoc);
+                                        locationDistance.setText(String.format("%.2f km", distanceToPOI / 1000));
+
+                                        final int index = j;
+                                        locationInfo.setOnClickListener(new View.OnClickListener() {
+                                            @Override
+                                            public void onClick(View v) {
+                                                System.out.println("Location details: " + locationsData.get(index));
+                                                destLat = Double.parseDouble(locationsData.get(index).get(0));
+                                                destLon = Double.parseDouble(locationsData.get(index).get(1));
+                                                getRoute(coordinates -> {
+                                                    try {
+                                                        map.getOverlayManager().remove(activeRoute);
+                                                    } catch (Exception e) {
+                                                        //nope
+                                                    }
+                                                    System.out.println("run1");
+                                                    activeRoute = drawRoute(coordinates, "#FFA500");
+                                                    map.getOverlays().add(activeRoute);
+                                                    Marker finishMarker = new Marker(map);
+
+                                                    System.out.println("run1.1");
+                                                    finishMarker.setIcon(ResourcesCompat.getDrawable(context.getResources(), R.drawable.baseline_flag_circle_24, null));
+
+                                                    System.out.println("run1.2");
+                                                    finishMarker.setPosition(new GeoPoint(coordinates.get(0)[coordinates.get(0).length-1], coordinates.get(1)[coordinates.get(1).length-1]));
+                                                    //finishMarker.setPosition(simulatedUser.getPosition());
+                                                    System.out.println("run1.3");
+                                                    finishMarker.setAnchor(0.5f,0.5f);
+                                                    System.out.println("run2");
+
+
+                                                    map.getOverlays().add(finishMarker);
+                                                    GeoPoint start = simulatedUser.getLocation();
+                                                    GeoPoint end = new GeoPoint(destLat, destLon);
+
+                                                    System.out.println("run3");
+                                                    BoundingBox b = getBoundingBox(start, end);
+                                                    map.zoomToBoundingBox(b, true, 100);
+                                                    map.invalidate();
+
+                                                    System.out.println("run4");
+
+                                                });
+                                                locationSuggestions.removeAllViews();
+                                            }
+                                        });
+
+                                        locationSuggestions.addView(locationInfo); // Add the view to the ViewGroup after setting the OnClickListener
+
+                                    }
                                 }
                             });
 
                         }
                     }
                 };
-                handler.postDelayed(runnable, 3000); // Schedule the new runnable with a 3-second delay
+                handler.postDelayed(runnable, 2000); // Schedule the new runnable with a 3-second delay
             }
 
             @Override
@@ -351,7 +430,14 @@ public class HomeFragment extends Fragment {
         // Inflate the layout for context fragment
         return view;
     }
+    private BoundingBox getBoundingBox(GeoPoint origin, GeoPoint destination) {
+        double north = Math.max(origin.getLatitude(), destination.getLatitude());
+        double south = Math.min(origin.getLatitude(), destination.getLatitude());
+        double east = Math.max(origin.getLongitude(), destination.getLongitude());
+        double west = Math.min(origin.getLongitude(), destination.getLongitude());
 
+        return new BoundingBox(north, east, south, west);
+    }
     public Polyline drawRoute(ArrayList<double[]> route, String colorString) {
 
         double[] lat = route.get(0);
@@ -372,7 +458,7 @@ public class HomeFragment extends Fragment {
     public interface RouteCallback {
         void onRouteAvailable(ArrayList<double[]> route);
     }
-    public void getRoute(com.example.emergencywatch.NavigationFragment.RouteCallback callback) {
+    public void getRoute(RouteCallback callback) {
         new HttpRequests("routing",new ArrayList<>(Arrays.asList(simulatedUser.getLocation(), new GeoPoint(destLat, destLon))), null,new HttpRequests.HttpListener() {
             @Override
             public void onHttpResponse(String response) throws JsonProcessingException {
@@ -414,7 +500,7 @@ public class HomeFragment extends Fragment {
         void onSuggAvailable(ArrayList<ArrayList<String>> locationsData);
     }
     //ArrayList<ArrayList<String>> locationsData;
-    public void getLocationSuggestions(com.example.emergencywatch.NavigationFragment.LocSuggCallback callback) {
+    public void getLocationSuggestions(LocSuggCallback callback) {
         new HttpRequests("locationSuggestions",null, searchBox.getText().toString(),new HttpRequests.HttpListener() {
             @Override
             public void onHttpResponse(String response) throws JsonProcessingException {
@@ -598,7 +684,9 @@ public class HomeFragment extends Fragment {
             try {
                 if (ev_list != null && ev_list.size() != 0 && userCurrentPos != null) {
                     //trigger anim.
-
+                    emergencyActiveInfo.setVisibility(View.VISIBLE);
+                    emergencyActiveTitle.setVisibility(View.VISIBLE);
+                    noEmgTitlePanel.setVisibility(View.INVISIBLE);
                     updateVehicleDistanceText();
                     closestVehicle = (simulatedEmergencyVehicle) ev_list.get(0).get(0);
                     for (int i = 0; i < ev_list.size(); i++) {
@@ -606,9 +694,13 @@ public class HomeFragment extends Fragment {
                         if (distance(new_vehicle.getLocation(), userCurrentPos) < distance(closestVehicle.getLocation(), userCurrentPos)) {
                             closestVehicle = (simulatedEmergencyVehicle) ev_list.get(i).get(0);
                         }
-                        String text = "Closest vehicle: " + capitalize(closestVehicle.getType()) + " \n Distance: " + (int) distance(closestVehicle.getLocation(), userCurrentPos) +" m";
-                        searchBox.setText(text);
+                        String text = capitalize(closestVehicle.getType()) + " vehicle at " + (int) distance(closestVehicle.getLocation(), userCurrentPos) +" m";
+                        emergencyActiveInfo.setText(text);
                     }
+                }else{
+                    emergencyActiveInfo.setVisibility(View.INVISIBLE);
+                    emergencyActiveTitle.setVisibility(View.INVISIBLE);
+                    noEmgTitlePanel.setVisibility(View.VISIBLE);
                 }
             } finally {
                 // 100% guarantee that context always happens, even if
@@ -728,12 +820,6 @@ public class HomeFragment extends Fragment {
         super.onPause();
         map.onPause();  //needed for compass, my location overlays, v6.0.0 and up
         updateNotificationHandler.postDelayed(updateNotificationRunnable, 3000);
-    }
-
-    class NavigationFragment extends Fragment {
-        public NavigationFragment() {
-            super(R.layout.fragment_navigation);
-        }
     }
 
 }

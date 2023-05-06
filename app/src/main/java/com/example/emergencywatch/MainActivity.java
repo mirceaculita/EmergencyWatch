@@ -28,13 +28,12 @@ import org.osmdroid.config.Configuration;
 import java.util.Objects;
 
 
-public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener{
+public class MainActivity extends AppCompatActivity{
 
     DrawerLayout drawerLayout;
     int currentFragmentId;
     Fragment homeFragment = new HomeFragment();
     Fragment settingsFragment = new SettingsFragment();
-    Fragment navFragment = new NavigationFragment();
     private final FragmentManager fragmentManager = getSupportFragmentManager();
 
     @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
@@ -58,22 +57,18 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             fragmentManager.beginTransaction()
                     .add(R.id.frameLayout, homeFragment, "home_frag")
                     .add(R.id.frameLayout, settingsFragment, "settings_frag")
-                    .add(R.id.frameLayout, navFragment, "nav_frag")
                     .commit();
             fragmentManager.beginTransaction()
                     .show(homeFragment)
                     .hide(settingsFragment)
-                    .hide(navFragment)
                     .commit();
         }
-        NavigationView navigationView = findViewById(R.id.nav_view);
-        navigationView.setNavigationItemSelectedListener(this);
-        drawerLayout = findViewById(R.id.drawer_layout);
+        //drawerLayout = findViewById(R.id.drawer_layout);
     }
 
-    void openDrawer(){
-        drawerLayout.openDrawer(GravityCompat.START);
-    }
+    //void openDrawer(){
+    //    drawerLayout.openDrawer(GravityCompat.START);
+    //}
 
     public void onResume() {
         super.onResume();
@@ -115,43 +110,23 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
-    @SuppressLint("NonConstantResourceId")
-    @Override
-    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.home_button:
-                fragmentManager.beginTransaction()
-                        .show(Objects.requireNonNull(fragmentManager.findFragmentByTag("home_frag")))
-                        .hide(Objects.requireNonNull(fragmentManager.findFragmentByTag("settings_frag")))
-                        .hide(Objects.requireNonNull(fragmentManager.findFragmentByTag("nav_frag")))
-                        .commit();
-                break;
-            case R.id.settings_button:
-                fragmentManager.beginTransaction()
-                        .hide(Objects.requireNonNull(fragmentManager.findFragmentByTag("home_frag")))
-                        .show(Objects.requireNonNull(fragmentManager.findFragmentByTag("settings_frag")))
-                        .hide(Objects.requireNonNull(fragmentManager.findFragmentByTag("nav_frag")))
-                        .commit();
-                break;
-            case R.id.nav_button:
-                fragmentManager.beginTransaction()
-                        .hide(Objects.requireNonNull(fragmentManager.findFragmentByTag("home_frag")))
-                        .hide(Objects.requireNonNull(fragmentManager.findFragmentByTag("settings_frag")))
-                        .show(Objects.requireNonNull(fragmentManager.findFragmentByTag("nav_frag")))
-                        .commit();
-                break;
-        }
-
-        drawerLayout.close();
-        return true;
+    public void showSettings(){
+        fragmentManager.beginTransaction()
+                .hide(Objects.requireNonNull(fragmentManager.findFragmentByTag("home_frag")))
+                .show(Objects.requireNonNull(fragmentManager.findFragmentByTag("settings_frag")))
+                .commit();
     }
-
+    public void showHome(){
+        fragmentManager.beginTransaction()
+                .show(Objects.requireNonNull(fragmentManager.findFragmentByTag("home_frag")))
+                .hide(Objects.requireNonNull(fragmentManager.findFragmentByTag("settings_frag")))
+                .commit();
+    }
     @Override
     public void onBackPressed() {
         fragmentManager.beginTransaction()
                 .show(Objects.requireNonNull(fragmentManager.findFragmentByTag("home_frag")))
                 .hide(Objects.requireNonNull(fragmentManager.findFragmentByTag("settings_frag")))
-                .hide(Objects.requireNonNull(fragmentManager.findFragmentByTag("nav_frag")))
                 .commit();
 
     }
