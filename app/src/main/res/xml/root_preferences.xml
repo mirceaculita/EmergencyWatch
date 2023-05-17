@@ -1,34 +1,65 @@
-<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:theme="@style/AppTheme">
 
-    <PreferenceCategory app:title="@string/messages_header">
+    <PreferenceCategory app:title="Notifications">
 
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="switch_TTS"
+            android:title="TTS notifications" />
+        <SwitchPreference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:defaultValue="true"
+            android:key="switch_notifications"
+            android:title="Normal notifications" />
         <EditTextPreference
-            app:key="signature"
-            app:title="@string/signature_title"
+            app:defaultValue="1000"
+            app:key="normalNotificationDistance1"
+            app:title="First Distance at which you will receive a notification about an emergency vehicle"
             app:useSimpleSummaryProvider="true" />
-
-        <ListPreference
-            app:defaultValue="reply"
-            app:entries="@array/reply_entries"
-            app:entryValues="@array/reply_values"
-            app:key="reply"
-            app:title="@string/reply_title"
+        <EditTextPreference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:defaultValue="500"
+            app:key="normalNotificationDistance2"
+            app:title="Second Distance at which you will receive a notification about an emergency vehicle"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:defaultValue="200"
+            app:key="normalNotificationDistance3"
+            app:title="Distance at which you will receive TTS notifications about an emergency vehicle"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:defaultValue="100"
+            app:key="normalNotificationDistance4"
+            app:title="Distance at which surrounding emergency vehicles will be announced"
             app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="@string/sync_header">
+    <PreferenceCategory app:title="Debug">
 
-        <SwitchPreferenceCompat
-            app:key="sync"
-            app:title="@string/sync_title" />
-
-        <SwitchPreferenceCompat
-            app:dependency="sync"
-            app:key="attachment"
-            app:summaryOff="@string/attachment_summary_off"
-            app:summaryOn="@string/attachment_summary_on"
-            app:title="@string/attachment_title" />
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="simulatedUserPos"
+            android:title="Use simulated user position" />
+        <EditTextPreference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:defaultValue="120"
+            app:key="userVehicleSpeed"
+            app:title="User vehicle speed"
+            app:useSimpleSummaryProvider="true" />
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="vehicleRoutes"
+            android:title="Display simulated vehicle routes" />
 
     </PreferenceCategory>
 

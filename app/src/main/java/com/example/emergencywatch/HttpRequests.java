@@ -4,6 +4,7 @@ import android.os.AsyncTask;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
+import org.json.JSONException;
 import org.osmdroid.util.GeoPoint;
 
 import java.io.BufferedReader;
@@ -33,7 +34,20 @@ public class HttpRequests extends AsyncTask<Void, Void, String> {
                     this.lon1 = String.valueOf(start.getLongitude());
                     this.lat2 = String.valueOf(end.getLatitude());
                     this.lon2 = String.valueOf(end.getLongitude());
-                    url = String.format("https://api.tomtom.com/routing/1/calculateRoute/%s,%s:%s,%s/json?key=0WzrtLx6slkR4SzhaKIGvGIqYXdgNdex", lat1, lon1, lat2, lon2);
+                    url = String.format("https://api.tomtom.com/routing/1/calculateRoute/%s,%s:%s,%s/json?key=0WzrtLx6slkR4SzhaKIGvGIqYXdgNdex&routeType=shortest&computeTravelTimeFor=all", lat1, lon1, lat2, lon2);
+                }
+            }
+        }
+        if(api.equals("routingVehicle")) {
+            if (locations.size() == 2) {
+                GeoPoint start = locations.get(0);
+                GeoPoint end = locations.get(1);
+                if (start != null && end != null) {
+                    this.lat1 = String.valueOf(start.getLatitude());
+                    this.lon1 = String.valueOf(start.getLongitude());
+                    this.lat2 = String.valueOf(end.getLatitude());
+                    this.lon2 = String.valueOf(end.getLongitude());
+                    url = String.format("https://api.tomtom.com/routing/1/calculateRoute/%s,%s:%s,%s/json?key=0WzrtLx6slkR4SzhaKIGvGIqYXdgNdex&routeType=shortest&computeTravelTimeFor=all", lat1, lon1, lat2, lon2);
                 }
             }
         }
@@ -91,13 +105,13 @@ public class HttpRequests extends AsyncTask<Void, Void, String> {
         if (listener != null) {
             try {
                 listener.onHttpResponse(result);
-            } catch (JsonProcessingException e) {
+            } catch (JsonProcessingException | JSONException e) {
                 throw new RuntimeException(e);
             }
         }
     }
 
     public interface HttpListener {
-        void onHttpResponse(String response) throws JsonProcessingException;
+        void onHttpResponse(String response) throws JsonProcessingException, JSONException;
     }
 }

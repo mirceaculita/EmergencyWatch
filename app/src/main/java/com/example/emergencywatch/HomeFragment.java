@@ -1,11 +1,14 @@
 package com.example.emergencywatch;
 
 
+import static java.lang.Math.abs;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -14,6 +17,7 @@ import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.VectorDrawable;
+import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -21,6 +25,7 @@ import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -36,9 +41,10 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.res.ResourcesCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
+import androidx.preference.Preference;
+import androidx.preference.SwitchPreference;
 
 import com.bumptech.glide.Glide;
-import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 
 import org.json.JSONArray;
@@ -55,6 +61,8 @@ import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.Overlay;
 import org.osmdroid.views.overlay.Polyline;
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
+import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
+import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 //import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
 import java.util.ArrayList;
@@ -63,11 +71,13 @@ import java.util.Arrays;
 public class HomeFragment extends Fragment {
 
     MapView map = null;
-    //public MyLocationNewOverlay locationOverlay;
+
+
+
+    public MyLocationNewOverlay locationOverlay;
     public Button floatingButton;
     public DrawerLayout drawerLayout;
     IMapController mapController;
-    private final Handler mapOrientationHandler = new Handler();
     private final Handler distanceToEvHandler = new Handler();
     private final Handler locationUpdateHandler = new Handler();
     private final Handler userLocationUpdateHandler = new Handler();
@@ -77,10 +87,12 @@ public class HomeFragment extends Fragment {
     ArrayList<ArrayList<Double>> route_gara = new ArrayList<>(Arrays.asList(lat_route_gara, lon_route_gara));
     ArrayList<Double> lat_route_sud = new ArrayList<>(Arrays.asList(47.15075, 47.15085, 47.15104, 47.15109, 47.15114, 47.1512, 47.15118, 47.15111, 47.15082, 47.15073, 47.15049, 47.14938, 47.14922, 47.1491, 47.14895, 47.14881, 47.1475, 47.1469, 47.14675, 47.14644, 47.14617, 47.14504, 47.14495, 47.14491, 47.14393, 47.14491, 47.14495, 47.14504, 47.14168, 47.14384, 47.14465, 47.14536, 47.14571, 47.1458, 47.1459, 47.14596, 47.14597, 47.14602, 47.14626, 47.14745, 47.14908, 47.14957, 47.15064));
     ArrayList<Double> lon_route_sud = new ArrayList<>(Arrays.asList(27.58794, 27.58789, 27.5879, 27.58793, 27.58807, 27.58834, 27.58845, 27.58868, 27.58956, 27.58989, 27.5906, 27.59401, 27.59447, 27.59478, 27.5954, 27.59619, 27.60568, 27.60971, 27.60964, 27.60954, 27.60925, 27.60688, 27.60696, 27.60688, 27.60477, 27.60688, 27.60696, 27.60688, 27.59978, 27.59657, 27.59547, 27.59452, 27.59418, 27.59413, 27.59413, 27.59405, 27.59397, 27.59384, 27.59345, 27.59209, 27.59005, 27.58939, 27.58803));
+    ArrayList<Double> lat_gps = new ArrayList<>(Arrays.asList(47.14698, 47.14696, 47.14691, 47.14664, 47.14648, 47.14639, 47.14634, 47.14625, 47.14652, 47.14666, 47.14672, 47.14682, 47.14697, 47.14701, 47.14706, 47.14711, 47.14717, 47.14742, 47.14757, 47.1477, 47.14779, 47.14794, 47.14807, 47.14809, 47.14829, 47.14859, 47.14937, 47.14986, 47.15044, 47.15112, 47.15141, 47.15224, 47.15244, 47.15324, 47.15332, 47.15334, 47.15366, 47.15375, 47.1539, 47.15408, 47.15423, 47.15445, 47.15481, 47.15494, 47.1552, 47.15533, 47.15544, 47.1556, 47.15577, 47.15586, 47.15604, 47.15645, 47.157, 47.15761, 47.15778, 47.15828, 47.15879, 47.15879, 47.15882, 47.15889, 47.1588, 47.15877, 47.15875, 47.15874, 47.15873, 47.15872, 47.15874, 47.15875, 47.15877, 47.1588, 47.15885, 47.15887, 47.15913, 47.15914, 47.15922, 47.15935, 47.15956, 47.15982, 47.16001, 47.16026, 47.16038, 47.16046, 47.16053, 47.1606, 47.16073, 47.1609, 47.16098, 47.16124, 47.16134, 47.16146, 47.16176, 47.16187, 47.16194, 47.16224, 47.16237, 47.16264, 47.16268, 47.16308, 47.16333, 47.16341, 47.16352, 47.16416, 47.16423, 47.16437, 47.16438, 47.16442, 47.16445, 47.16452, 47.16466, 47.16505, 47.1654, 47.16554, 47.16557, 47.16595, 47.16607, 47.16613, 47.1665, 47.16666, 47.1669, 47.16742, 47.16777, 47.16827, 47.16869, 47.16884, 47.16904, 47.16921, 47.1694, 47.16961, 47.16962, 47.16982, 47.16998, 47.17004, 47.1707, 47.17087, 47.17125, 47.17158, 47.17177, 47.17191, 47.17197, 47.17208, 47.1722, 47.17234, 47.17243, 47.17259, 47.1727, 47.173, 47.17316, 47.17348, 47.17375, 47.17382, 47.17396, 47.17433, 47.17443, 47.17456, 47.17467, 47.17504, 47.17529, 47.1754, 47.17577, 47.17618, 47.17645, 47.1765, 47.17659, 47.17671, 47.17678, 47.17696, 47.17677, 47.17625, 47.17619));
+    ArrayList<Double> lon_gps = new ArrayList<>(Arrays.asList(27.6092, 27.60935, 27.60967, 27.60961, 27.60955, 27.6095, 27.60943, 27.60948, 27.61006, 27.6102, 27.61025, 27.61029, 27.61036, 27.61003, 27.60971, 27.60944, 27.60901, 27.60723, 27.60617, 27.60525, 27.60456, 27.60344, 27.60251, 27.60234, 27.60239, 27.60247, 27.6027, 27.60285, 27.60301, 27.60322, 27.60332, 27.60358, 27.60364, 27.60388, 27.6039, 27.60391, 27.60401, 27.60403, 27.60408, 27.60414, 27.60419, 27.60425, 27.60436, 27.60439, 27.60442, 27.60441, 27.60438, 27.60432, 27.60422, 27.60415, 27.60399, 27.60358, 27.60304, 27.60242, 27.60225, 27.60176, 27.60123, 27.60122, 27.60112, 27.60105, 27.60086, 27.60081, 27.60075, 27.60068, 27.6006, 27.60053, 27.60042, 27.60038, 27.60033, 27.60026, 27.60024, 27.60022, 27.59982, 27.59974, 27.59964, 27.59947, 27.59913, 27.59866, 27.59826, 27.59766, 27.59737, 27.59719, 27.59701, 27.59685, 27.59654, 27.59625, 27.59611, 27.59573, 27.59559, 27.59555, 27.59518, 27.59508, 27.59503, 27.5948, 27.59472, 27.59453, 27.5945, 27.59405, 27.5937, 27.59356, 27.59334, 27.59194, 27.59179, 27.59147, 27.59144, 27.59136, 27.59129, 27.59123, 27.5911, 27.59085, 27.59064, 27.59054, 27.59051, 27.59025, 27.59016, 27.59006, 27.58981, 27.5897, 27.58955, 27.58923, 27.58902, 27.58872, 27.58838, 27.58824, 27.58805, 27.58786, 27.58761, 27.58723, 27.5872, 27.58688, 27.58668, 27.58662, 27.586, 27.58581, 27.58537, 27.58507, 27.58492, 27.58484, 27.58482, 27.5848, 27.58476, 27.58465, 27.58448, 27.58428, 27.58409, 27.58361, 27.58337, 27.5829, 27.58258, 27.5825, 27.58236, 27.58205, 27.58195, 27.58182, 27.58172, 27.58131, 27.58099, 27.58086, 27.58042, 27.57985, 27.57943, 27.57933, 27.57914, 27.57875, 27.57848, 27.57797, 27.57771, 27.57682, 27.57666));
     ArrayList<ArrayList<Double>> route_sud = new ArrayList<>(Arrays.asList(lat_route_sud, lon_route_sud));
-    //ArrayList<Double> lon_route_tatarasi = new ArrayList<>(Arrays.asList(27.60116, 27.60149, 27.60391, 27.60582, 27.60838, 27.60965, 27.61121, 27.61212, 27.61247, 27.61315, 27.61337, 27.61401, 27.61493, 27.6152, 27.61844, 27.61856, 27.61978, 27.61994, 27.62016, 27.62054, 27.62076, 27.6215, 27.62217, 27.62348, 27.62361, 27.62368, 27.62406, 27.62429, 27.62482, 27.6249, 27.62507, 27.62535, 27.62545, 27.62545, 27.62542, 27.62536, 27.62515, 27.62488, 27.6246, 27.62273, 27.62232, 27.6219, 27.62182, 27.62162, 27.6214, 27.60432, 27.60425, 27.60444, 27.6044, 27.60436, 27.60425, 27.60325, 27.60304, 27.60117, 27.6011));
-    //ArrayList<Double> lat_route_tatarasi = new ArrayList<>(Arrays.asList(47.15891, 47.159, 47.15948, 47.15982, 47.16006, 47.16015, 47.16014, 47.16017, 47.16021, 47.1601, 47.16, 47.15991, 47.15977, 47.15979, 47.1593, 47.15922, 47.15903, 47.15898, 47.15887, 47.1586, 47.15853, 47.15798, 47.15753, 47.15658, 47.15649, 47.15632, 47.15603, 47.15599, 47.1556, 47.15554, 47.15541, 47.15508, 47.15482, 47.15465, 47.1545, 47.15434, 47.15406, 47.15382, 47.15367, 47.15323, 47.1531, 47.15282, 47.15275, 47.15233, 47.15158, 47.15441, 47.15442, 47.15507, 47.15549, 47.15563, 47.1558, 47.15684, 47.15701, 47.15885, 47.15888));
-    //ArrayList<ArrayList<Double>> route_tatarasi = new ArrayList<>(Arrays.asList(lat_route_tatarasi, lon_route_tatarasi));
+    ArrayList<Double> lon_route_tatarasi = new ArrayList<>(Arrays.asList(27.60116, 27.60149, 27.60391, 27.60582, 27.60838, 27.60965, 27.61121, 27.61212, 27.61247, 27.61315, 27.61337, 27.61401, 27.61493, 27.6152, 27.61844, 27.61856, 27.61978, 27.61994, 27.62016, 27.62054, 27.62076, 27.6215, 27.62217, 27.62348, 27.62361, 27.62368, 27.62406, 27.62429, 27.62482, 27.6249, 27.62507, 27.62535, 27.62545, 27.62545, 27.62542, 27.62536, 27.62515, 27.62488, 27.6246, 27.62273, 27.62232, 27.6219, 27.62182, 27.62162, 27.6214, 27.60432, 27.60425, 27.60444, 27.6044, 27.60436, 27.60425, 27.60325, 27.60304, 27.60117, 27.6011));
+    ArrayList<Double> lat_route_tatarasi = new ArrayList<>(Arrays.asList(47.15891, 47.159, 47.15948, 47.15982, 47.16006, 47.16015, 47.16014, 47.16017, 47.16021, 47.1601, 47.16, 47.15991, 47.15977, 47.15979, 47.1593, 47.15922, 47.15903, 47.15898, 47.15887, 47.1586, 47.15853, 47.15798, 47.15753, 47.15658, 47.15649, 47.15632, 47.15603, 47.15599, 47.1556, 47.15554, 47.15541, 47.15508, 47.15482, 47.15465, 47.1545, 47.15434, 47.15406, 47.15382, 47.15367, 47.15323, 47.1531, 47.15282, 47.15275, 47.15233, 47.15158, 47.15441, 47.15442, 47.15507, 47.15549, 47.15563, 47.1558, 47.15684, 47.15701, 47.15885, 47.15888));
+    ArrayList<ArrayList<Double>> route_tatarasi = new ArrayList<>(Arrays.asList(lat_route_tatarasi, lon_route_tatarasi));
     ArrayList<ArrayList<Object>> ev_list = new ArrayList<>();
     TextView searchBox;
     GeoPoint userCurrentPos;
@@ -108,6 +120,22 @@ public class HomeFragment extends Fragment {
     Button settingsButton;
 
     Button centerMapButton;
+
+    Marker finishMarker;
+
+    ArrayList<Marker> globalPointsToCheck = new ArrayList<>();
+
+    Button straightenMap;
+
+    int activeRouteTimeToTravel;
+    private SharedPreferences sharedPreferences;
+    simulatedEmergencyVehicle chosenVehicle;
+    private SharedPreferences.OnSharedPreferenceChangeListener preferenceChangeListener;
+
+    private boolean usingLiveLocation = false;
+
+    ArrayList<Marker> vehicleLocationEstimations = new ArrayList<>();
+
     public HomeFragment() {
         // Required empty public constructor
     }
@@ -127,6 +155,9 @@ public class HomeFragment extends Fragment {
         Context ctx = getContext();
         Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
         context = ctx;
+        // Initialize SharedPreferences
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+
 
         map = view.findViewById(R.id.map);
         //floatingButton = view.findViewById(R.id.menuButton);
@@ -148,7 +179,7 @@ public class HomeFragment extends Fragment {
         mapController.setCenter(simulatedUserStartLoc);
         settingsButton = view.findViewById(R.id.settings_floating_button);
         centerMapButton = view.findViewById(R.id.center_floating_button);
-
+        finishMarker = new Marker(map);
 
         final Handler mapUpdateHandler = new Handler();
         mapUpdateHandler.postDelayed(new Runnable() {
@@ -158,12 +189,42 @@ public class HomeFragment extends Fragment {
             }
         }, 32); // Update the map view 30 times a second
 
-        //GpsMyLocationProvider provider = new GpsMyLocationProvider(context);
-        //provider.addLocationSource(LocationManager.NETWORK_PROVIDER);
-        //locationOverlay = new MyLocationNewOverlay(provider, map);
-        //locationOverlay.enableFollowLocation();
-        //locationOverlay.runOnFirstFix(() -> Log.d("MyTag", String.format("First location fix: %s", locationOverlay.getLastFix())));
-        //map.getOverlayManager().add(locationOverlay);
+
+        //live location settings
+        GpsMyLocationProvider provider = new GpsMyLocationProvider(context);
+        provider.addLocationSource(LocationManager.NETWORK_PROVIDER);
+        locationOverlay = new MyLocationNewOverlay(provider, map);
+        locationOverlay.runOnFirstFix(() -> Log.d("MyTag", String.format("First location fix: %s", locationOverlay.getLastFix())));
+//        map.getOverlayManager().add(locationOverlay);
+
+        preferenceChangeListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
+            public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
+                // Here you can handle changes in preferences
+                // For example:
+                if (key.equals("simulatedUserPos") && !prefs.getBoolean("simulatedUserPos", true)) {
+                    // Do something when the preference with key "your_preference_key" changes
+                    map.getOverlayManager().add(locationOverlay);
+                    simulatedUser.useLiveLocation(locationOverlay);
+                    locationOverlay.enableFollowLocation();
+                    usingLiveLocation = true;
+                    map.onResume();
+                    map.invalidate();
+                }
+
+                if (key.equals("simulatedUserPos") && prefs.getBoolean("simulatedUserPos", true)) {
+                    // Do something when the preference with key "your_preference_key" changes
+                    map.getOverlayManager().remove(locationOverlay);
+                    simulatedUser.useSimulatedLocation();
+                    locationOverlay.disableFollowLocation();
+                    usingLiveLocation = false;
+                    mapController.animateTo(simulatedUser.getLocation());
+                    map.invalidate();
+                }
+            }
+        };
+        sharedPreferences.registerOnSharedPreferenceChangeListener(preferenceChangeListener);
+
+
 
         map.setMultiTouchControls(true);
         map.getZoomController().setVisibility(CustomZoomButtonsController.Visibility.NEVER);
@@ -174,85 +235,96 @@ public class HomeFragment extends Fragment {
         locationSuggestions = view.findViewById(R.id.suggestionTextLayout);
 
         startUserLocUpdate();
-        startMapOrientation();
         startdistanceToEVChecker();
         startLocationUpdate();
+
+        straightenMap = view.findViewById(R.id.straigthen_floating_button);
+        straightenMap.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                currentMapAngle = map.getMapOrientation();
+                if (currentMapAngle > 10f || currentMapAngle < -10f)
+                    mapController.animateTo(simulatedUser.getLocation(), map.getZoomLevelDouble(), null, 0f);
+            }
+        });
 
         final int[] count = {0};
         Button stuffButton = view.findViewById(R.id.stuffButton);
         stuffButton.setOnClickListener(view -> {
-            if(count[0] == 0) {
+            if (count[0] == 0) {
+                firetruck_vehicle = new simulatedEmergencyVehicle("firetruck", route_tatarasi, sharedPreferences.getBoolean("vehicleRoutes", false), "#9F2B68", context, map);
                 addActiveEmergencyToMap(firetruck_vehicle);
 
-            }
-            else if (count[0] == 1)
+            } else if (count[0] == 1) {
+                ambulance_vehicle = new simulatedEmergencyVehicle("police", route_gara, sharedPreferences.getBoolean("vehicleRoutes", false), "#9F2B68", context, map);
                 addActiveEmergencyToMap(ambulance_vehicle);
+            }
             count[0]++;
         });
 
         //floatingButton.setOnClickListener(view -> {
-          //  ((MainActivity) requireActivity()).openDrawer();
+        //  ((MainActivity) requireActivity()).openDrawer();
         //});
 
 
-        ambulance_vehicle = new simulatedEmergencyVehicle("police", route_gara, true, "#90EE90", context, map);
-        firetruck_vehicle = new simulatedEmergencyVehicle("firetruck", route_sud, true, "#90EE90", context, map);
         //userCurrentPos = locationOverlay.getMyLocation();
         bottomSheetBehavior = BottomSheetBehavior.from(bottomSheet);
         bottomSheet.setOnClickListener(view -> bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED));
 
         // create simulatedUser object and add it to map
-        simulatedUser = new SimulatedUser(context,map, simulatedUserStartLoc);
+        simulatedUser = new SimulatedUser(context, map, simulatedUserStartLoc, this);
         map.getOverlays().add(simulatedUser);
 
         map.setOnTouchListener(new View.OnTouchListener() {
             private boolean markerSelected = false;
+
             @SuppressLint("ClickableViewAccessibility")
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                GeoPoint mapOldLoc = (GeoPoint) map.getMapCenter();
-                double mapZoomOld = map.getZoomLevelDouble();
-                if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    // Check if marker was selected
-                    Point screenPoint = new Point((int) event.getX(), (int) event.getY());
-                    GeoPoint markerLocation = simulatedUser.getPosition();
-                    Point markerPoint = map.getProjection().toPixels(markerLocation, null);
-                    int markerWidth = simulatedUser.getIcon().getIntrinsicWidth();
-                    int markerHeight = simulatedUser.getIcon().getIntrinsicHeight();
+                    GeoPoint mapOldLoc = (GeoPoint) map.getMapCenter();
+                    double mapZoomOld = map.getZoomLevelDouble();
+                    if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                        // Check if marker was selected
+                        Point screenPoint = new Point((int) event.getX(), (int) event.getY());
+                        GeoPoint markerLocation = simulatedUser.getPosition();
+                        Point markerPoint = map.getProjection().toPixels(markerLocation, null);
+                        int markerWidth = simulatedUser.getIcon().getIntrinsicWidth();
+                        int markerHeight = simulatedUser.getIcon().getIntrinsicHeight();
 
-                    RectF markerRect = new RectF(markerPoint.x - markerWidth/2f,
-                            markerPoint.y - markerHeight/2f,
-                            markerPoint.x + markerWidth/2f,
-                            markerPoint.y + markerHeight/2f);
+                        RectF markerRect = new RectF(markerPoint.x - markerWidth / 2f,
+                                markerPoint.y - markerHeight / 2f,
+                                markerPoint.x + markerWidth / 2f,
+                                markerPoint.y + markerHeight / 2f);
 
-                    if (markerRect.contains(screenPoint.x, screenPoint.y)) {
-                        simulatedUser.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-                        markerSelected = true;
-                        return true;
-                    }
-                } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
-                    if (markerSelected) {
-                        // Move marker with finger
-                        simulatedUser.updateIconColor(Color.MAGENTA);
-                        GeoPoint point = (GeoPoint) map.getProjection().fromPixels((int) event.getX(), (int) event.getY());
-                        simulatedUser.setPosition(point);
-                        mapController.animateTo(point);
+                        if (markerRect.contains(screenPoint.x, screenPoint.y)) {
+                            simulatedUser.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+                            markerSelected = true;
+                            return true;
+                        }
+                    } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                        if (markerSelected) {
+                            // Move marker with finger
+                            simulatedUser.updateIconColor(Color.MAGENTA);
+                            mapController.animateTo(map.getMapCenter(), map.getZoomLevelDouble(), 0L,0f);
+                            GeoPoint point = (GeoPoint) map.getProjection().fromPixels((int) event.getX(), (int) event.getY());
+                            simulatedUser.setPosition(point);
+                            mapController.animateTo(point);
 
-                        return true;
+                            return true;
+                        }
+                    } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                        if (markerSelected) {
+                            // Change marker size back to normal
+                            simulatedUser.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+                            simulatedUser.setCurrentLocation(simulatedUser.getPosition());
+                            mapController.setZoom(mapZoomOld);
+                            mapController.setCenter(mapOldLoc);
+                            markerSelected = false;
+                            return true;
+                        }
                     }
-                } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    if (markerSelected) {
-                        // Change marker size back to normal
-                        simulatedUser.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-                        simulatedUser.setCurrentLocation(simulatedUser.getPosition());
-                        mapController.setZoom(mapZoomOld);
-                        mapController.setCenter(mapOldLoc);
-                        markerSelected = false;
-                        return true;
-                    }
+                    return false;
                 }
-                return false;
-            }
         });
 
         ttsNotificationManager = new TTSNotificationManager(context);
@@ -268,7 +340,7 @@ public class HomeFragment extends Fragment {
         centerMapButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-               mapController.animateTo(simulatedUser.getLocation(), 18.0, 1500L);
+                mapController.animateTo(simulatedUser.getLocation(), 18.0, 1500L);
                 //mapController.animateTo(simulatedUser.getLocation());
             }
         });
@@ -276,6 +348,9 @@ public class HomeFragment extends Fragment {
         searchBox.addTextChangedListener(new TextWatcher() {
             private Handler handler = new Handler();
             private Runnable runnable;
+
+            private Handler vehicleIntersectionHandler = new Handler();
+            private Runnable vehicleIntersectionRunnable;
 
             @Override
             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
@@ -315,7 +390,7 @@ public class HomeFragment extends Fragment {
                             System.out.println("am scris in textbox lmao ce nice");
                             getLocationSuggestions(locationsData -> {
                                 System.out.println(locationsData.size());
-                                if(locationsData.size() == 0){
+                                if (locationsData.size() == 0) {
                                     locationSuggestions.removeAllViews();
                                     LayoutInflater inflater = LayoutInflater.from(view.getContext());
                                     View locationInfo = inflater.inflate(R.layout.location_data_list, locationSuggestions, false);
@@ -331,7 +406,7 @@ public class HomeFragment extends Fragment {
                                     locationName.setText("No results found");
                                     locationSuggestions.addView(locationInfo); // Add the view to the ViewGroup after setting the OnClickListener
 
-                                }else {
+                                } else {
                                     int limit = 0;
                                     if (locationsData.size() > 6)
                                         limit = 6;
@@ -372,41 +447,66 @@ public class HomeFragment extends Fragment {
                                                 System.out.println("Location details: " + locationsData.get(index));
                                                 destLat = Double.parseDouble(locationsData.get(index).get(0));
                                                 destLon = Double.parseDouble(locationsData.get(index).get(1));
-                                                getRoute(coordinates -> {
-                                                    try {
-                                                        map.getOverlayManager().remove(activeRoute);
-                                                    } catch (Exception e) {
-                                                        //nope
-                                                    }
-                                                    System.out.println("run1");
-                                                    activeRoute = drawRoute(coordinates, "#FFA500");
+
+                                                getRouteUser2Point(routeData -> {
+                                                    ArrayList<double[]> coordinates = (ArrayList<double[]>) routeData.get(1);
+                                                    clearMap();
+
+                                                    System.out.println(Arrays.toString(coordinates.get(0)));
+                                                    System.out.println(Arrays.toString(coordinates.get(1)));
+                                                    activeRoute = drawRouteReal(coordinates, "#00FFFF");
                                                     map.getOverlays().add(activeRoute);
-                                                    Marker finishMarker = new Marker(map);
 
-                                                    System.out.println("run1.1");
                                                     finishMarker.setIcon(ResourcesCompat.getDrawable(context.getResources(), R.drawable.baseline_flag_circle_24, null));
-
-                                                    System.out.println("run1.2");
-                                                    finishMarker.setPosition(new GeoPoint(coordinates.get(0)[coordinates.get(0).length-1], coordinates.get(1)[coordinates.get(1).length-1]));
-                                                    //finishMarker.setPosition(simulatedUser.getPosition());
-                                                    System.out.println("run1.3");
-                                                    finishMarker.setAnchor(0.5f,0.5f);
-                                                    System.out.println("run2");
-
-
+                                                    finishMarker.setPosition(new GeoPoint(coordinates.get(0)[coordinates.get(0).length - 1], coordinates.get(1)[coordinates.get(1).length - 1]));
+                                                    finishMarker.setAnchor(0.5f, 0.5f);
                                                     map.getOverlays().add(finishMarker);
+
                                                     GeoPoint start = simulatedUser.getLocation();
                                                     GeoPoint end = new GeoPoint(destLat, destLon);
 
-                                                    System.out.println("run3");
                                                     BoundingBox b = getBoundingBox(start, end);
                                                     map.zoomToBoundingBox(b, true, 100);
                                                     map.invalidate();
+                                                    locationSuggestions.removeAllViews();
+                                                    addActiveEmergencyToMap(simulatedUser.simUserStartDrivingToLocation(coordinates, context, map));
 
-                                                    System.out.println("run4");
+                                                    vehicleIntersectionRunnable = new Runnable() {
+                                                        @Override
+                                                        public void run() {
+                                                            managePossibleIntersections(coordinates);
+                                                            vehicleIntersectionHandler.postDelayed(this, 5000);
+                                                        }
+                                                    };
+                                                    vehicleIntersectionHandler.postDelayed(vehicleIntersectionRunnable, 5000);
 
                                                 });
-                                                locationSuggestions.removeAllViews();
+
+                                                //ArrayList<ArrayList<Double>> coordinates = new ArrayList<>(Arrays.asList(lat_gps, lon_gps));
+                                                //activeRouteTimeToTravel = 960;
+//
+//                                                try {
+//                                                    map.getOverlayManager().remove(activeRoute);
+//                                                    map.getOverlayManager().remove(finishMarker);
+//                                                } catch (Exception e) {
+//                                                    //nope
+//                                                }
+//                                                activeRoute = drawRouteReal(coordinates, "#00FFFF");
+//                                                map.getOverlays().add(activeRoute);
+//
+//                                                finishMarker.setIcon(ResourcesCompat.getDrawable(context.getResources(), R.drawable.baseline_flag_circle_24, null));
+//                                                finishMarker.setPosition(new GeoPoint(coordinates.get(0).get(coordinates.get(0).size() - 1), coordinates.get(1).get(coordinates.get(1).size() - 1)));
+//                                                finishMarker.setAnchor(0.5f, 0.5f);
+//                                                map.getOverlays().add(finishMarker);
+//
+//                                                GeoPoint start = simulatedUser.getLocation();
+//                                                GeoPoint end = new GeoPoint(destLat, destLon);
+//
+//                                                BoundingBox b = getBoundingBox(start, end);
+//                                                map.zoomToBoundingBox(b, true, 100);
+//                                                map.invalidate();
+
+
                                             }
                                         });
 
@@ -430,6 +530,17 @@ public class HomeFragment extends Fragment {
         // Inflate the layout for context fragment
         return view;
     }
+
+    public void switchToLiveLocations(){
+        map.getOverlayManager().add(locationOverlay);
+        map.onResume();
+
+        locationOverlay.setEnabled(true);
+        for(Overlay overlay : map.getOverlays()){
+            System.out.println(overlay.toString());
+        }
+    }
+
     private BoundingBox getBoundingBox(GeoPoint origin, GeoPoint destination) {
         double north = Math.max(origin.getLatitude(), destination.getLatitude());
         double south = Math.min(origin.getLatitude(), destination.getLatitude());
@@ -438,10 +549,153 @@ public class HomeFragment extends Fragment {
 
         return new BoundingBox(north, east, south, west);
     }
-    public Polyline drawRoute(ArrayList<double[]> route, String colorString) {
 
-        double[] lat = route.get(0);
-        double[] lon = route.get(1);
+    public void clearMap(){
+        try {
+            map.getOverlayManager().remove(activeRoute);
+            map.getOverlayManager().remove(finishMarker);
+            for(Marker marker : globalPointsToCheck){
+                map.getOverlayManager().remove(marker);
+            }
+        } catch (Exception e) {
+            //nope
+        }
+    }
+    public GeoPoint getClosestRoutePoint(simulatedEmergencyVehicle vehicle, ArrayList<double[]> coordinates) {
+        GeoPoint closestPoint = null;
+        GeoPoint[] geoPoints = convertToGeoPoint(coordinates);
+        double minDist = 9999f;
+        int index = 0;
+        for (int i = 0; i < geoPoints.length; i++) {
+            GeoPoint currentPoint = geoPoints[i];
+            if (distance(vehicle.getLocation(), currentPoint) < minDist) {
+                minDist = distance(vehicle.getLocation(), currentPoint);
+                closestPoint = currentPoint;
+                index = i;
+            }
+        }
+        System.out.println("Closest point in route is at index: " + index);
+
+        return closestPoint;
+    }
+
+    public GeoPoint[] convertToGeoPoint(ArrayList<double[]> coordinates) {
+        GeoPoint[] geoPoints = new GeoPoint[coordinates.get(0).length];
+        double[] lat = coordinates.get(0);
+        double[] lon = coordinates.get(1);
+        for (int i = 0; i < coordinates.get(0).length; i++) {
+            geoPoints[i] = new GeoPoint(lat[i], lon[i]);
+        }
+        return geoPoints;
+    }
+
+    public boolean verifyIfStillOnRoute(simulatedEmergencyVehicle vehicle, ArrayList<double[]> coordinates) {
+        GeoPoint closestPoint = getClosestRoutePoint(vehicle, vehicle.getActiveRoutePoints());
+        GeoPoint[] geoPoints = convertToGeoPoint(coordinates);
+
+        int index = 1;
+        double headingDiffClosestPoint = vehicle.getHeadingToPoint(closestPoint) - vehicle.getHeading();
+        if (headingDiffClosestPoint < 10 && headingDiffClosestPoint > -10) {
+            return true;
+        } else {
+            for (int i = 0; i < geoPoints.length; i++) {
+                GeoPoint point = geoPoints[i];
+                if (abs(point.getLatitude() - closestPoint.getLatitude()) < 0.0001
+                        && abs(point.getLongitude() - closestPoint.getLongitude()) < 0.0001) {
+                    index = i;
+                    System.out.printf("%s is at index %s out of %s on it's route%n", vehicle.getType(), geoPoints.length, index);
+                    break;
+                }
+            }
+
+            GeoPoint pointAfterClosestPoint = geoPoints[index + 1];
+            double headingDiffPointBeforeClosestPoint = vehicle.getHeadingToPoint(pointAfterClosestPoint) - vehicle.getHeading();
+            if (headingDiffPointBeforeClosestPoint < 10 && headingDiffPointBeforeClosestPoint > -10) {
+                return true;
+            }
+
+        }
+        return false;
+    }
+
+    void managePossibleIntersections(ArrayList<double[]> route_coordinates) {
+        //get possible intersection point
+        ArrayList<Double> lat = new ArrayList<>();
+        ArrayList<Double> lon = new ArrayList<>();
+        for (double point : route_coordinates.get(0)) {
+            lat.add(point);
+        }
+        for (double point : route_coordinates.get(1)) {
+            lon.add(point);
+        }
+        ArrayList<ArrayList<Double>> routePoints = new ArrayList<>();
+        routePoints.add(lat);
+        routePoints.add(lon);
+        if (ev_list.size() != 0) {
+            for (int i = 0; i < ev_list.size(); i++) {
+                simulatedEmergencyVehicle vehicle = (simulatedEmergencyVehicle) ev_list.get(i).get(0);
+                System.out.println("Checking " + vehicle.getType());
+                if (!vehicle.getReachedDest()) {
+                    if (vehicle.getDest() == null) {
+                        vehicle.setDest(verifyVehicleIntersections(routePoints, vehicle));
+                    }
+                    if (vehicle.getDest() != null) {
+                        System.out.println("Possible intersection for " + vehicle.getType() + " is " + vehicle.getDest());
+                        chosenVehicle = vehicle;
+                        destLat = vehicle.getDest().getLatitude();
+                        destLon = vehicle.getDest().getLongitude();
+                        System.out.println(vehicle.getType() + " distance to dest " + distance(vehicle.getPosition(), vehicle.getDest()));
+                        if (distance(vehicle.getPosition(), vehicle.getDest()) < 800 && distance(vehicle.getDest(), simulatedUser.getLocation())>100) {
+                            //get route to that point and plot it
+                            getRouteVehicle2Point(routeData -> {
+                                if (routeData.get(1) != null) {
+                                    // check if time for user and vehicle are close
+                                    getRouteUser2Point(routeData2 -> {
+                                        int travelTime = (int) routeData2.get(0);
+
+                                        int vehicleRouteLength = (int) routeData.get(2);
+                                        double vehicleSpeedMs = vehicle.getSpeedMs();
+                                        double vehicleTravelTime = vehicleRouteLength/vehicleSpeedMs;
+                                        int userRouteLength = (int) routeData2.get(2);
+                                        double userVehicleSpeedMs = Integer.parseInt(sharedPreferences.getString("userVehicleSpeed", "120"))* (1000.0 / 3600.0);
+                                        double userTravelTime = userRouteLength/userVehicleSpeedMs;
+
+
+                                        //check time of arrival, if time is bad stop checking this car
+                                        System.out.println("MATH: vehicle travel time: " + vehicleTravelTime + " <-> user travel time " + userTravelTime);
+                                        if (abs(vehicleTravelTime - userTravelTime) < 30) {
+                                            float minutesToIntersetions = (float) userTravelTime / 60;
+                                            @SuppressLint("DefaultLocale") String minutesToIntesectionString = String.format("%.2f", minutesToIntersetions);
+                                            vehicle.setTravelTimeOnActiveRoute((Integer) routeData.get(0));
+                                            vehicle.setOnActiveRoute(true);
+                                            vehicle.updateIconColor(Color.BLUE);
+                                            if (notified_Stage3.contains(vehicle)) {
+                                                System.out.println(vehicle.getType() + " already notified about possible intersection");
+                                            } else {
+                                                ttsNotificationManager.createTTSNotification(capitalize("Possible intersection with a " + vehicle.getType() + " vehicle on your route in approximately " + minutesToIntesectionString + "minutes if you maintain "+Integer.parseInt(sharedPreferences.getString("userVehicleSpeed", "120"))+" kilometers per hour average speed"));
+                                                notified_Stage3.add(vehicle);
+                                            }
+                                        } else {
+                                            vehicle.setOnActiveRoute(false);
+                                        }
+                                    });
+
+                                }
+                            });
+                        }
+                    }
+                }else{
+                    vehicle.updateIconColor(Color.BLACK);
+                }
+            }
+        }
+
+
+    }
+    public Polyline drawRouteFake(ArrayList<ArrayList<Double>> route, String colorString) {
+
+        ArrayList<Double> lat = route.get(0);
+        ArrayList<Double> lon = route.get(1);
         System.out.println(lat);
         System.out.println(lon);
         Polyline myPath = new Polyline();
@@ -449,20 +703,74 @@ public class HomeFragment extends Fragment {
         myPath.setColor(Color.parseColor(colorString));
 
 
-        for (int i = 0; i < lat.length; i++) {
-            myPath.addPoint(new GeoPoint(lat[i],lon[i]));
+        for (int i = 0; i < lat.size(); i++) {
+            myPath.addPoint(new GeoPoint(lat.get(i), lon.get(i)));
         }
 
         return (myPath);
     }
-    public interface RouteCallback {
-        void onRouteAvailable(ArrayList<double[]> route);
+
+    public Polyline drawRouteReal(ArrayList<double[]> route, String colorString) {
+
+        double[] lat = route.get(0);
+        double[] lon = route.get(1);
+        System.out.println(Arrays.toString(lat));
+        System.out.println(Arrays.toString(lon));
+        Polyline myPath = new Polyline();
+        myPath.setWidth(10f);
+        myPath.setColor(Color.parseColor(colorString));
+
+
+        for (int i = 0; i < lat.length; i++) {
+            myPath.addPoint(new GeoPoint(lat[i], lon[i]));
+        }
+
+        return (myPath);
     }
-    public void getRoute(RouteCallback callback) {
-        new HttpRequests("routing",new ArrayList<>(Arrays.asList(simulatedUser.getLocation(), new GeoPoint(destLat, destLon))), null,new HttpRequests.HttpListener() {
+
+    public GeoPoint verifyVehicleIntersections(ArrayList<ArrayList<Double>> coordinates, simulatedEmergencyVehicle vehicle) {
+        ArrayList<Marker> pointsToCheck = new ArrayList<>();
+        for (int j = 0; j < coordinates.get(0).size(); j += 10) {
+            double routeLat = coordinates.get(0).get(j);
+            double routeLon = coordinates.get(1).get(j);
+            double headingDiff = vehicle.getHeadingToPoint(new GeoPoint(routeLat, routeLon)) - vehicle.getHeading();
+            if (distance(vehicle.getLocation(), new GeoPoint(routeLat, routeLon)) < 800 && headingDiff < 10 && headingDiff > -10) {
+                Marker pointToCheck = new Marker(map);
+                pointToCheck.setIcon(ResourcesCompat.getDrawable(context.getResources(), R.drawable.baseline_radio_button_checked_24, null));
+                pointToCheck.setPosition(new GeoPoint(routeLat, routeLon));
+                pointToCheck.setAnchor(0.5f, 0.5f);
+                pointsToCheck.add(pointToCheck);
+                globalPointsToCheck.add(pointToCheck);
+                map.getOverlays().add(pointToCheck);
+            }
+        }
+        if (pointsToCheck.size() > 1) {
+            GeoPoint closestPoint = new GeoPoint(0d, 0d);
+            for (Marker pointToCheck : pointsToCheck) {
+                if (distance(vehicle.getPosition(), pointToCheck.getPosition()) < distance(closestPoint, vehicle.getPosition())) {
+                    closestPoint = pointToCheck.getPosition();
+                }
+
+            }
+            return closestPoint;
+        } else {
+            if (pointsToCheck.size() != 0)
+                return pointsToCheck.get(0).getPosition();
+            else
+                return null;
+        }
+    }
+
+    public interface RouteCallback {
+        void onRouteAvailable(ArrayList<Object> routeData);
+    }
+    public void getRouteUser2Point(RouteCallback callback) {
+        new HttpRequests("routing", new ArrayList<>(Arrays.asList(simulatedUser.getLocation(), new GeoPoint(destLat, destLon))), null, new HttpRequests.HttpListener() {
             @Override
             public void onHttpResponse(String response) throws JsonProcessingException {
                 ArrayList<double[]> coordinates = new ArrayList<>();
+                ArrayList<Object> routeData = new ArrayList<>();
+                int travelTime = 0;
                 try {
                     JSONObject jsonObject = new JSONObject(response);
                     JSONArray routesArray = jsonObject.getJSONArray("routes");
@@ -471,6 +779,10 @@ public class HomeFragment extends Fragment {
                     JSONObject legObject = legsArray.getJSONObject(0);
                     JSONArray pointsArray = legObject.getJSONArray("points");
 
+                    JSONObject summaryObj = routeObject.getJSONObject("summary");
+                    travelTime = summaryObj.getInt("noTrafficTravelTimeInSeconds");
+                    int lengthInMeters = summaryObj.getInt("lengthInMeters");
+                    routeData.add(travelTime);
                     int length = pointsArray.length();
                     double[] latitudes = new double[length];
                     double[] longitudes = new double[length];
@@ -484,12 +796,59 @@ public class HomeFragment extends Fragment {
                     }
                     coordinates.add(latitudes);
                     coordinates.add(longitudes);
+                    routeData.add(coordinates);
+                    routeData.add(lengthInMeters);
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
                 try {
-                    callback.onRouteAvailable(coordinates);
-                }catch (Exception e){
+                    callback.onRouteAvailable(routeData);
+                } catch (Exception e) {
+                    System.out.println(e.getMessage());
+                }
+            }
+        }).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+    }
+
+    public void getRouteVehicle2Point(RouteCallback callback) {
+        new HttpRequests("routingVehicle", new ArrayList<>(Arrays.asList(chosenVehicle.getPosition(), new GeoPoint(destLat, destLon))), null, new HttpRequests.HttpListener() {
+            @Override
+            public void onHttpResponse(String response) throws JsonProcessingException {
+                ArrayList<double[]> coordinates = new ArrayList<>();
+                ArrayList<Object> routeData = new ArrayList<>();
+                try {
+                    JSONObject jsonObject = new JSONObject(response);
+                    JSONArray routesArray = jsonObject.getJSONArray("routes");
+                    JSONObject routeObject = routesArray.getJSONObject(0);
+                    JSONArray legsArray = routeObject.getJSONArray("legs");
+                    JSONObject legObject = legsArray.getJSONObject(0);
+                    JSONArray pointsArray = legObject.getJSONArray("points");
+
+                    JSONObject summaryObj = routeObject.getJSONObject("summary");
+                    int travelTime = summaryObj.getInt("noTrafficTravelTimeInSeconds");
+                    int lengthInMeters = summaryObj.getInt("lengthInMeters");
+                    routeData.add(travelTime);
+                    int length = pointsArray.length();
+                    double[] latitudes = new double[length];
+                    double[] longitudes = new double[length];
+
+                    for (int i = 0; i < length; i++) {
+                        JSONObject pointObject = pointsArray.getJSONObject(i);
+                        double latitude = pointObject.getDouble("latitude");
+                        double longitude = pointObject.getDouble("longitude");
+                        latitudes[i] = latitude;
+                        longitudes[i] = longitude;
+                    }
+                    coordinates.add(latitudes);
+                    coordinates.add(longitudes);
+                    routeData.add(coordinates);
+                    routeData.add(lengthInMeters);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    callback.onRouteAvailable(routeData);
+                } catch (Exception e) {
                     System.out.println(e.getMessage());
                 }
             }
@@ -499,9 +858,10 @@ public class HomeFragment extends Fragment {
     public interface LocSuggCallback {
         void onSuggAvailable(ArrayList<ArrayList<String>> locationsData);
     }
+
     //ArrayList<ArrayList<String>> locationsData;
     public void getLocationSuggestions(LocSuggCallback callback) {
-        new HttpRequests("locationSuggestions",null, searchBox.getText().toString(),new HttpRequests.HttpListener() {
+        new HttpRequests("locationSuggestions", null, searchBox.getText().toString(), new HttpRequests.HttpListener() {
             @Override
             public void onHttpResponse(String response) throws JsonProcessingException {
                 // Handle the API response here
@@ -516,7 +876,7 @@ public class HomeFragment extends Fragment {
                         String lon = jsonObject.getString("lon");
                         String displayName = jsonObject.getString("display_name");
 
-                        ArrayList<String> locationInfo = new ArrayList<>(Arrays.asList(lat,lon,displayName));
+                        ArrayList<String> locationInfo = new ArrayList<>(Arrays.asList(lat, lon, displayName));
                         locationsData.add(locationInfo);
                     }
                     callback.onSuggAvailable(locationsData);
@@ -566,117 +926,125 @@ public class HomeFragment extends Fragment {
             return 99999999;
         }
     }
+
     ArrayList<simulatedEmergencyVehicle> notified_Stage1 = new ArrayList<>();
     ArrayList<simulatedEmergencyVehicle> notified_Stage2 = new ArrayList<>();
     ArrayList<simulatedEmergencyVehicle> notified_Stage3 = new ArrayList<>();
-    void checkIfNotify(simulatedEmergencyVehicle vehicle){
+
+    void checkIfNotify(simulatedEmergencyVehicle vehicle) {
         String vehicleStreet = vehicle.getStreetLoc();
         double distanceToSimUser = distance(simulatedUser.getLocation(), vehicle.getLocation());
         //System.out.println("Distance to sim user: " + distanceToSimUser);
-        if (distanceToSimUser > 1000) {
+        if (distanceToSimUser > 1300) {
             notified_Stage1.remove(vehicle);
             notified_Stage2.remove(vehicle);
             notified_Stage3.remove(vehicle);
         }
+        int normalNotificationDistance1 = Integer.parseInt(sharedPreferences.getString("normalNotificationDistance1", "1000"));
+        int normalNotificationDistance2 = Integer.parseInt(sharedPreferences.getString("normalNotificationDistance2", "500"));
+        int normalNotificationDistance3 = Integer.parseInt(sharedPreferences.getString("normalNotificationDistance3", "200"));
+        int normalNotificationDistance4 = Integer.parseInt(sharedPreferences.getString("normalNotificationDistance4", "100"));
 
         // check if vehicle is approaching the user
         double headingDiff = vehicle.getHeadingToPoint(simulatedUser.getLocation()) - vehicle.getHeading();
         if (headingDiff > -20 && headingDiff < 20) {
             //System.out.println(capitalize(vehicle.getType()) + " is approaching the simulated user location. Heading diff: "+headingDiff);
-            if(vehicle.getIconColor() != Color.GREEN)
-                vehicle.updateIconColor(Color.GREEN);
+            //if(vehicle.getIconColor() != Color.GREEN)
+            //  vehicle.updateIconColor(Color.GREEN);
+
             if (vehicleStreet != null) {
                 if (vehicleStreet.equals(simulatedUser.getStreetLoc())) {
-                    vehicle.updateIconColor(Color.BLUE);
-                    if (distanceToSimUser < 1000 && distanceToSimUser > 500 && !notified_Stage1.contains(vehicle)) {
-                        NormalNotification.showNotification(context, "EmergencyWatch Alerts", capitalize(vehicle.getType()) + " is less than 1000 meters away. Prepare to move over.", vehicle.getBitmapIcon());
+
+                    // vehicle.updateIconColor(Color.BLUE);
+                    if (distanceToSimUser < normalNotificationDistance1 && distanceToSimUser > normalNotificationDistance2 && !notified_Stage1.contains(vehicle)) {
+                        NormalNotification.showNotification(context, "EmergencyWatch Alerts", capitalize(vehicle.getType()) + " is less than "+normalNotificationDistance1+" meters away. Prepare to move over.", vehicle.getBitmapIcon());
                         notified_Stage1.add(vehicle);
-                    } else if (distanceToSimUser < 500 && distanceToSimUser > 100 && !notified_Stage2.contains(vehicle)) {
-                        NormalNotification.showNotification(context, "EmergencyWatch Alerts", capitalize(vehicle.getType()) + " is less than 500 meters away. Prepare to move over.", vehicle.getBitmapIcon());
+                    } else if (distanceToSimUser < normalNotificationDistance2 && distanceToSimUser > normalNotificationDistance3 && !notified_Stage2.contains(vehicle)) {
+                        NormalNotification.showNotification(context, "EmergencyWatch Alerts", capitalize(vehicle.getType()) + " is less than "+normalNotificationDistance2+" meters away. Prepare to move over.", vehicle.getBitmapIcon());
                         notified_Stage2.add(vehicle);
-                    } else if (distanceToSimUser < 100 && !notified_Stage3.contains(vehicle)) {
-                        //NormalNotification.showNotification(context, "EmergencyWatch Alerts", capitalize(vehicle.getType()) + " is right behind you. Move over immediately", vehicle.getBitmapIcon());
+                    } else if (distanceToSimUser < normalNotificationDistance3 && !notified_Stage3.contains(vehicle)) {
                         ttsNotificationManager.createTTSNotification(capitalize(vehicle.getType()) + " is right behind you. Move over immediately");
                         notified_Stage3.add(vehicle);
                     }
+                } else {
+                    if (distanceToSimUser <= normalNotificationDistance4 && !notified_Stage3.contains(vehicle)) {
+                        ttsNotificationManager.createTTSNotification("A " + capitalize(vehicle.getType()) + " vehicle is around your location. Beware of possible intersection.");
+                        notified_Stage3.add(vehicle);
+                    }
+                }
+            } else {
+                if (distanceToSimUser <= normalNotificationDistance4 && !notified_Stage3.contains(vehicle)) {
+                    ttsNotificationManager.createTTSNotification("A " + capitalize(vehicle.getType()) + " vehicle is around your location. Beware of possible intersection.");
+                    notified_Stage3.add(vehicle);
                 }
             }
-        } else{
-            //System.out.println(capitalize(vehicle.getType()) + " is moving away from the simulated user location. Heading diff: "+headingDiff);
-            if(vehicle.getIconColor() != Color.RED)
-                vehicle.updateIconColor(Color.RED);
+        } else {
+            if (distanceToSimUser <= normalNotificationDistance4 && !notified_Stage3.contains(vehicle)) {
+                //NormalNotification.showNotification(context, "EmergencyWatch Alerts", capitalize(vehicle.getType()) + " is right behind you. Move over immediately", vehicle.getBitmapIcon());
+                ttsNotificationManager.createTTSNotification("A " + capitalize(vehicle.getType()) + " vehicle is around your location. Beware of possible intersection.");
+                notified_Stage3.add(vehicle);
+            }
         }
     }
+
     @SuppressLint("SetTextI18n")
-    void updateVehicleDistanceText(){
+    void updateVehicleDistanceText() {
         TextView noActiveEmergencies = view.findViewById(R.id.noActiveEmergencies);
         if (ev_list.size() != 0) {
-            noActiveEmergencies.setText(ev_list.size() +" emergencies in your area.");
+            noActiveEmergencies.setText(ev_list.size() + " emergencies in your area.");
             for (int i = 0; i < ev_list.size(); i++) {
-                simulatedEmergencyVehicle vehicle = (simulatedEmergencyVehicle)ev_list.get(i).get(0);
+                simulatedEmergencyVehicle vehicle = (simulatedEmergencyVehicle) ev_list.get(i).get(0);
                 checkIfNotify(vehicle);
                 TextView distanceText = (TextView) ev_list.get(i).get(1);
                 int dist = (int) distance(vehicle.getLocation(), simulatedUser.getLocation()/*userCurrentPos*/);
                 distanceText.setText("" + dist + " m");
             }
-        }else{
+        } else {
             noActiveEmergencies.setText("No emergencies in your area.");
         }
     }
+
     @SuppressLint("SetTextI18n")
     void addActiveEmergencyToMap(simulatedEmergencyVehicle vehicle) {
+
         vehicle.draw();
+        if (vehicle.getType() != "user") {
+            System.out.println("Added " + vehicle.getType() + " to slide panel");
 
-        System.out.println("Added "+ vehicle.getType()+ " to slide panel");
+            LayoutInflater inflater = LayoutInflater.from(context);
+            View vehicleDetails = inflater.inflate(R.layout.emergency_vehicle_details, vehicleDetailsTable);
+            TextView vehicleType = vehicleDetails.findViewById(R.id.vehicleDetails_type);
+            TextView vehicleDistance = vehicleDetails.findViewById(R.id.vehicleDetails_distance);
+            TextView vehicleLocation = vehicleDetails.findViewById(R.id.vehicleDetails_location);
+            ImageView vehicleIcon = vehicleDetails.findViewById(R.id.vehicleDetails_icon);
+            vehicleIcon.setImageDrawable(vehicle.getIcon());
 
-        LayoutInflater inflater = LayoutInflater.from(context);
-        View vehicleDetails = inflater.inflate(R.layout.emergency_vehicle_details, vehicleDetailsTable);
-        TextView vehicleType = vehicleDetails.findViewById(R.id.vehicleDetails_type);
-        TextView vehicleDistance = vehicleDetails.findViewById(R.id.vehicleDetails_distance);
-        TextView vehicleLocation = vehicleDetails.findViewById(R.id.vehicleDetails_location);
-        ImageView vehicleIcon = vehicleDetails.findViewById(R.id.vehicleDetails_icon);
-        vehicleIcon.setImageDrawable(vehicle.getIcon());
+            Bitmap bitmap = drawableToBitmap(vehicle.getIcon());
 
-        Bitmap bitmap = drawableToBitmap(vehicle.getIcon());
-
-        // Load the bitmap into the ImageView using Glide
-        Glide.with(context)
-                .load(bitmap)
-                .into(vehicleIcon);
+            // Load the bitmap into the ImageView using Glide
+            Glide.with(context)
+                    .load(bitmap)
+                    .into(vehicleIcon);
 
 
-        vehicleType.setText(capitalize(vehicle.getType()));
-        vehicleLocation.setText("Street: Fetching...");
-        vehicleLocation.setId(View.generateViewId());
-        vehicleDistance.setText((int) (distance(vehicle.getLocation(), userCurrentPos)) + "m");
-        vehicleDetails.setId(View.generateViewId());
-        vehicleType.setId(View.generateViewId());
-        vehicleDistance.setId(View.generateViewId());
-        vehicleIcon.setId(View.generateViewId());
-        ArrayList<Object> vehicleData = new ArrayList<>();
-        vehicleData.add(vehicle);
-        vehicleData.add(vehicleDistance);
-        vehicleData.add(vehicleLocation);
-        ev_list.add(vehicleData);
-        updateVehicleDistanceText();
+            vehicleType.setText(capitalize(vehicle.getType()));
+            vehicleLocation.setText("Street: Fetching...");
+            vehicleLocation.setId(View.generateViewId());
+            vehicleDistance.setText((int) (distance(vehicle.getLocation(), userCurrentPos)) + "m");
+            vehicleDetails.setId(View.generateViewId());
+            vehicleType.setId(View.generateViewId());
+            vehicleDistance.setId(View.generateViewId());
+            vehicleIcon.setId(View.generateViewId());
+            ArrayList<Object> vehicleData = new ArrayList<>();
+            vehicleData.add(vehicle);
+            vehicleData.add(vehicleDistance);
+            vehicleData.add(vehicleLocation);
+            ev_list.add(vehicleData);
+            updateVehicleDistanceText();
+        }
 
     }
-    Runnable mapOrientationCheckerRunnable = new Runnable() {
-        @Override
-        public void run() {
-            try {
-                currentMapAngle = map.getMapOrientation();
-                if (currentMapAngle > 10f || currentMapAngle < -10f)
-                    mapController.animateTo(userCurrentPos, map.getZoomLevelDouble(), null, 0f);
 
-            } finally {
-                // 100% guarantee that context always happens, even if
-                // your update method throws an exception
-                int mapOrientationCheckInterval = 3000;
-                mapOrientationHandler.postDelayed(mapOrientationCheckerRunnable, mapOrientationCheckInterval);
-            }
-        }
-    };
     Runnable distanceToVehiclesRunnable = new Runnable() {
         @SuppressLint("SetTextI18n")
         @Override
@@ -690,14 +1058,14 @@ public class HomeFragment extends Fragment {
                     updateVehicleDistanceText();
                     closestVehicle = (simulatedEmergencyVehicle) ev_list.get(0).get(0);
                     for (int i = 0; i < ev_list.size(); i++) {
-                        simulatedEmergencyVehicle new_vehicle =(simulatedEmergencyVehicle) ev_list.get(i).get(0);
+                        simulatedEmergencyVehicle new_vehicle = (simulatedEmergencyVehicle) ev_list.get(i).get(0);
                         if (distance(new_vehicle.getLocation(), userCurrentPos) < distance(closestVehicle.getLocation(), userCurrentPos)) {
                             closestVehicle = (simulatedEmergencyVehicle) ev_list.get(i).get(0);
                         }
-                        String text = capitalize(closestVehicle.getType()) + " vehicle at " + (int) distance(closestVehicle.getLocation(), userCurrentPos) +" m";
+                        String text = capitalize(closestVehicle.getType()) + " vehicle at " + (int) distance(closestVehicle.getLocation(), userCurrentPos) + " m";
                         emergencyActiveInfo.setText(text);
                     }
-                }else{
+                } else {
                     emergencyActiveInfo.setVisibility(View.INVISIBLE);
                     emergencyActiveTitle.setVisibility(View.INVISIBLE);
                     noEmgTitlePanel.setVisibility(View.VISIBLE);
@@ -712,23 +1080,24 @@ public class HomeFragment extends Fragment {
     };
     Runnable vehicleLocationUpdateRunnable = new Runnable() {
         int i = 0;
+
         @SuppressLint("SetTextI18n")
         @Override
         public void run() {
-            try{
+            try {
                 if (ev_list.size() != 0) {
                     if (i < ev_list.size()) {
-                        simulatedEmergencyVehicle vehicle = (simulatedEmergencyVehicle)ev_list.get(i).get(0);
-                        System.out.println("Request location for "+ vehicle.getType() + " coord: "+ vehicle.getLocation());
+                        simulatedEmergencyVehicle vehicle = (simulatedEmergencyVehicle) ev_list.get(i).get(0);
+                        System.out.println("Request location for " + vehicle.getType() + " coord: " + vehicle.getLocation());
                         vehicle.getStreet(streetName -> {
                             // Use the street name here
-                            System.out.println("updated location for "+  vehicle.getType() + "it's location is: "+ streetName);
-                            TextView text = (TextView)ev_list.get(i).get(2);
+                            System.out.println("updated location for " + vehicle.getType() + "it's location is: " + streetName);
+                            TextView text = (TextView) ev_list.get(i).get(2);
                             text.setText("Street: " + streetName);
                             vehicle.setStreetLoc(streetName);
-                            if(i+1 != ev_list.size()){
+                            if (i + 1 != ev_list.size()) {
                                 i++;
-                            }else{
+                            } else {
                                 i = 0;
                             }
                         });
@@ -749,10 +1118,9 @@ public class HomeFragment extends Fragment {
         public void run() {
             try {
                 userCurrentPos = simulatedUser.getLocation();
-            }catch(Exception e){
+            } catch (Exception e) {
                 System.out.println(e.getMessage());
-            }
-            finally {
+            } finally {
                 int interval = 1000;
                 userLocationUpdateHandler.postDelayed(userLocationUpdateRunnable, interval);
             }
@@ -762,41 +1130,41 @@ public class HomeFragment extends Fragment {
     private final Runnable updateNotificationRunnable = new Runnable() {
         @Override
         public void run() {
-            if(closestVehicle != null) {
+            if (closestVehicle != null) {
                 updatePermanentNotification("EmergencyWatch", "Closest vehicle: " + capitalize(closestVehicle.getType()) + ". \nDistance: " + (int) distance(closestVehicle.getLocation(), userCurrentPos) + " m", R.drawable.baseline_running_with_errors_24);
                 updateNotificationHandler.postDelayed(this, 3000); // Repeat every 3000 milliseconds
-            }else{
+            } else {
                 updatePermanentNotification("EmergencyWatch", "No active emergencies in your area.", R.drawable.baseline_running_with_errors_24);
             }
         }
     };
 
 
-    void startUserLocUpdate(){
+    void startUserLocUpdate() {
         userLocationUpdateRunnable.run();
     }
-    void stopUserLocUpdate(){
+
+    void stopUserLocUpdate() {
         userLocationUpdateHandler.removeCallbacks(userLocationUpdateRunnable);
     }
+
     void startLocationUpdate() {
         vehicleLocationUpdateRunnable.run();
     }
+
     void stopLocationUpdate() {
         locationUpdateHandler.removeCallbacks(vehicleLocationUpdateRunnable);
     }
+
     void startdistanceToEVChecker() {
         distanceToVehiclesRunnable.run();
     }
+
     void stopdistanceToEVChecker() {
         distanceToEvHandler.removeCallbacks(distanceToVehiclesRunnable);
     }
-    void startMapOrientation() {
-        mapOrientationCheckerRunnable.run();
-    }
-    void stopMapOrientation() {
-        mapOrientationHandler.removeCallbacks(mapOrientationCheckerRunnable);
-    }
-    public String capitalize(String str){
+
+    public String capitalize(String str) {
         return str.substring(0, 1).toUpperCase() + str.substring(1);
     }
 
@@ -816,10 +1184,12 @@ public class HomeFragment extends Fragment {
 
         updateNotificationHandler.removeCallbacks(updateNotificationRunnable);
     }
+
     public void onPause() {
         super.onPause();
         map.onPause();  //needed for compass, my location overlays, v6.0.0 and up
         updateNotificationHandler.postDelayed(updateNotificationRunnable, 3000);
     }
+
 
 }

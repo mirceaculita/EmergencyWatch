@@ -11,14 +11,12 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
-import android.graphics.drawable.Icon;
 import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.view.animation.Interpolator;
 import android.view.animation.LinearInterpolator;
 
-import androidx.core.content.ContextCompat;
 import androidx.core.content.res.ResourcesCompat;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -28,12 +26,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
+import org.osmdroid.views.overlay.Overlay;
 import org.osmdroid.views.overlay.Polyline;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 public class simulatedEmergencyVehicle extends Marker {
     ArrayList<Double> lat_route;
@@ -59,6 +56,17 @@ public class simulatedEmergencyVehicle extends Marker {
 
     int iconColor;
     double distanceToUser = 0;
+    int speedKPH;
+
+    Polyline activeRoute;
+    ArrayList<double[]> activeRoutePoints;
+    boolean onActiveRoute = false;
+
+    boolean reachedDest = false;
+
+
+    GeoPoint destination = null;
+    int travelTimeOnActiveRoute = 9999;
     public simulatedEmergencyVehicle(String type, ArrayList<ArrayList<Double>> route, boolean drawRoute, String routeColor, Context context, MapView map) {
         super(map);
         lat_route = route.get(0);
@@ -83,6 +91,9 @@ public class simulatedEmergencyVehicle extends Marker {
             case "police":
                 dr = ResourcesCompat.getDrawable(context.getResources(), R.drawable.baseline_local_police_24, null);
                 break;
+            case "user":
+                dr = ResourcesCompat.getDrawable(context.getResources(), R.drawable.baseline_my_location_24_green, null);
+                break;
             default:
                 dr = ResourcesCompat.getDrawable(context.getResources(), R.drawable.ic_launcher_foreground, null);
                 break;
@@ -92,12 +103,89 @@ public class simulatedEmergencyVehicle extends Marker {
         this.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
         carMarkerIcon = this.getIcon();
     }
+    private Polyline drawRouteReal(ArrayList<double[]> route) {
 
 
+        double[] lat = route.get(0);
+        double[] lon = route.get(1);
+        System.out.println(Arrays.toString(lat));
+        System.out.println(Arrays.toString(lon));
+        Polyline myPath = new Polyline();
+        myPath.setWidth(10f);
+        myPath.setColor(Color.parseColor("#0000FF"));
+
+
+        for (int i = 0; i < lat.length; i++) {
+            myPath.addPoint(new GeoPoint(lat[i], lon[i]));
+        }
+
+        return (myPath);
+    }
+
+    public void setSpeedKPH(int speed){
+        speedKPH = speed;
+    }
+    public void setActiveRoute(ArrayList<double[]> activeRouteCoords){
+        activeRoutePoints = activeRouteCoords;
+        try {
+            mapView.getOverlayManager().remove(activeRoute);
+        } catch (Exception e) {
+            //nope
+        }
+        if(activeRouteCoords!=null){
+            activeRoute = drawRouteReal(activeRouteCoords);
+            System.out.println("///////////////"+activeRoute.getPoints());
+            mapView.getOverlays().add(activeRoute);
+            onActiveRoute = true;
+        }
+    }
+    boolean annoucedReachedDest = false;
+
+    public void setReachedDest(boolean bool){
+        if (!annoucedReachedDest) {
+            System.out.println(getType() + " reached it's destination");
+            annoucedReachedDest = true;
+        }
+        reachedDest = bool;
+    }
+    public boolean getReachedDest(){
+        return reachedDest;
+    }
+    public void setDest(GeoPoint dest){
+        destination = dest;
+        System.out.println("Set destination for "+getType()+" at "+destination);
+    }
+    public GeoPoint getDest(){
+        return destination;
+    }
+    public void setTravelTimeOnActiveRoute(int time){
+        travelTimeOnActiveRoute = time;
+    }
+    public int getTravelTimeOnActiveRoute(){
+        return travelTimeOnActiveRoute;
+    }
+    public ArrayList<double[]> getActiveRoutePoints(){
+        return activeRoutePoints;
+    }
+
+    public boolean isOnActiveRoute(){
+        return onActiveRoute;
+    }
+
+    public void setOnActiveRoute(boolean onActiveRoute) {
+        this.onActiveRoute = onActiveRoute;
+    }
 
     public void draw(){
         if (drawRouteToMap)
             mapView.getOverlays().add(drawRoute(routes, routesColor));
+        mapView.getOverlays().add(carMarker);
+        if (canMoveMarker)
+            updateMarkerPos(0, lat_route.size(), 100);
+    }
+    public void drawUserVehicle(Overlay overlay){
+        if (drawRouteToMap)
+            mapView.getOverlays().add(overlay);
         mapView.getOverlays().add(carMarker);
         if (canMoveMarker)
             updateMarkerPos(0, lat_route.size(), 100);
@@ -191,9 +279,8 @@ public class simulatedEmergencyVehicle extends Marker {
                     }
 
                     double distance = distance(currentPoint, futurePoint, "m");
-                    int speedKPH = 120;
+                    speedKPH = 120;
                     int waittime_local = (int) (distance/(speedKPH/3.6)*1000);
-                    //System.out.println("waittime: " + waittime_local);
                     moveMarker(carMarker, currentPoint, futurePoint, waittime_local);
                     if (i + 2 == lat_route.size()) {
                         updateMarkerPos(0, n, waittime_local);
@@ -203,6 +290,17 @@ public class simulatedEmergencyVehicle extends Marker {
                 }
             }
         }, waitTime);
+    }
+
+    void checkIfVehicleReachedDest()
+    {
+        if(getDest()!=null)
+        {
+            double dist = distance(getPosition(), getDest(), "m");
+            if(dist<50){
+                setReachedDest(true);
+            }
+        }
     }
     private void moveMarker(Marker marker, GeoPoint currentPos, GeoPoint newPosition, double duration) {
         // Get the current position of the marker
@@ -219,7 +317,7 @@ public class simulatedEmergencyVehicle extends Marker {
                 GeoPoint position = interpolate(t, currentPos, newPosition);
                 setCurrentLocation(position);
                 marker.setPosition(position);
-
+                checkIfVehicleReachedDest();
                 if (t < 1.0) {
                     // Post again 16ms later for the next frame.
                     handler.postDelayed(this, 32);
@@ -291,5 +389,6 @@ public class simulatedEmergencyVehicle extends Marker {
     public String getStreetLoc(){return streetLoc;}
     public void setDistanceToUser(double value){distanceToUser = value;}
     public double getDistanceToUser(){return distanceToUser;}
+    public double getSpeedMs(){return speedKPH * (1000.0 / 3600.0);}
     public double getHeadingToPoint(GeoPoint point){return calculateHeading(currentLocation, point);}
 }

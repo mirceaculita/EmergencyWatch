@@ -3,7 +3,9 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Build;
+import android.preference.PreferenceManager;
 import android.speech.tts.TextToSpeech;
 
 import java.util.Locale;
@@ -12,8 +14,15 @@ public class TTSNotificationManager {
     private static final String CHANNEL_ID = "TTS_NOTIFICATION_CHANNEL";
     private Context context;
     private TextToSpeech tts;
+    public static SharedPreferences sharedPreferences;
+    public static boolean notificationsEnabled = true;
 
     public TTSNotificationManager(Context context) {
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        boolean areNormalNotificationsEnabled = sharedPreferences.getBoolean("switch_notifications", true);
+        if(!areNormalNotificationsEnabled)
+            notificationsEnabled = false;
+
         this.context = context;
         createNotificationChannel();
         initializeTextToSpeech();
@@ -44,26 +53,28 @@ public class TTSNotificationManager {
     }
 
     public void createTTSNotification(String text) {
-        Notification.Builder notificationBuilder;
+        if (notificationsEnabled) {
+            Notification.Builder notificationBuilder;
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            notificationBuilder = new Notification.Builder(context, CHANNEL_ID);
-        } else {
-            notificationBuilder = new Notification.Builder(context);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                notificationBuilder = new Notification.Builder(context, CHANNEL_ID);
+            } else {
+                notificationBuilder = new Notification.Builder(context);
+            }
+
+            Notification notification = notificationBuilder
+                    .setSmallIcon(R.drawable.baseline_running_with_errors_24)
+                    .setContentTitle("EmergencyWatch TTS")
+                    .setContentText(text)
+                    .setAutoCancel(true)
+                    .build();
+
+            NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            int notificationId = 1;
+            notificationManager.notify(notificationId, notification);
+
+            // Play the TTS
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "TTS_NOTIFICATION");
         }
-
-        Notification notification = notificationBuilder
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setContentTitle("TTS Notification")
-                .setContentText(text)
-                .setAutoCancel(true)
-                .build();
-
-        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        int notificationId = 1;
-        notificationManager.notify(notificationId, notification);
-
-        // Play the TTS
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "TTS_NOTIFICATION");
     }
 }
