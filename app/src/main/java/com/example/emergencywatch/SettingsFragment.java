@@ -9,18 +9,22 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 import androidx.preference.SwitchPreference;
-import androidx.preference.SwitchPreferenceCompat;
-
-import java.security.Key;
-
+/**
+ * A fragment that displays the settings preferences.
+ * This fragment allows the user to configure various settings for the application.
+ */
 public class SettingsFragment extends PreferenceFragmentCompat {
-    private SharedPreferences sharedPreferences;
+    /**
+     * Called to create the preferences of the fragment.
+     *
+     * @param savedInstanceState The saved instance state of the fragment.
+     * @param rootKey             The key of the root preference screen.
+     */
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
         setPreferencesFromResource(R.xml.root_preferences, rootKey);
-        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext());
 
-        // Get each Preference item
+        // Get references to each preference item
         SwitchPreference switchTTS = findPreference("switch_TTS");
         SwitchPreference switchNotifications = findPreference("switch_notifications");
         EditTextPreference normalNotificationDistance1 = findPreference("normalNotificationDistance1");
@@ -29,92 +33,11 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         EditTextPreference userVehicleSpeed = findPreference("userVehicleSpeed");
         SwitchPreference vehicleRoutes = findPreference("vehicleRoutes");
         SwitchPreference liveUserPos = findPreference("simulatedUserPos");
+
+        // Set the default value of 'liveUserPos' preference to true
         assert liveUserPos != null;
         liveUserPos.setChecked(true);
-
-        // Set listener for each Preference item
-        if (switchTTS != null) {
-            switchTTS.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-                @Override
-                public boolean onPreferenceChange(Preference preference, Object newValue) {
-                    // Your logic here when the switchTTS Preference changes
-                    return true;
-                }
-            });
-        }
-        // Set listener for each Preference item
-        if (liveUserPos != null) {
-            liveUserPos.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-                @Override
-                public boolean onPreferenceChange(@NonNull Preference preference, Object newValue) {
-                    return true;
-                }
-            });
-        }
-
-        if (switchNotifications != null) {
-            switchNotifications.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-                @Override
-                public boolean onPreferenceChange(Preference preference, Object newValue) {
-                    // Your logic here when the switchNotifications Preference changes
-                    return true;
-                }
-            });
-        }
-
-        if (normalNotificationDistance1 != null) {
-            normalNotificationDistance1.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-                @Override
-                public boolean onPreferenceChange(Preference preference, Object newValue) {
-                    // Your logic here when the normalNotificationDistance1 Preference changes
-                    return true;
-                }
-            });
-        }
-
-        if (normalNotificationDistance2 != null) {
-            normalNotificationDistance2.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-                @Override
-                public boolean onPreferenceChange(Preference preference, Object newValue) {
-                    // Your logic here when the normalNotificationDistance2 Preference changes
-                    return true;
-                }
-            });
-        }
-
-        if (normalNotificationDistance3 != null) {
-            normalNotificationDistance3.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-                @Override
-                public boolean onPreferenceChange(Preference preference, Object newValue) {
-                    // Your logic here when the normalNotificationDistance3 Preference changes
-                    return true;
-                }
-            });
-        }
-
-        if (userVehicleSpeed != null) {
-            userVehicleSpeed.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-                @Override
-                public boolean onPreferenceChange(Preference preference, Object newValue) {
-                    // Your logic here when the userVehicleSpeed Preference changes
-                    return true;
-                }
-            });
-        }
-
-        if (vehicleRoutes != null) {
-            vehicleRoutes.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-                @Override
-                public boolean onPreferenceChange(Preference preference, Object newValue) {
-                    // Your logic here when the vehicleRoutes Preference changes
-                    return true;
-                }
-            });
-        }
-
     }
-
-
 
 
 }

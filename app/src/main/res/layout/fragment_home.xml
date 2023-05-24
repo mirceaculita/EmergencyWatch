@@ -14,8 +14,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/constraintLayoutBig"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        >
+        android:layout_height="match_parent">
 
         <include layout="@layout/map_view" />
 
@@ -30,9 +29,9 @@
                 android:id="@+id/slideup_sheet"
                 android:layout_width="match_parent"
                 android:layout_height="700dp"
+                android:background="#00FFFFFF"
                 android:orientation="vertical"
                 app:behavior_hideable="true"
-                android:background="#00FFFFFF"
                 app:behavior_peekHeight="64dp"
                 app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
 

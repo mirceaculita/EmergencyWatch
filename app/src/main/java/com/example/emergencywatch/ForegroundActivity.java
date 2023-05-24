@@ -1,6 +1,5 @@
 package com.example.emergencywatch;
 
-import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -62,11 +61,13 @@ public class ForegroundActivity extends Service {
         }
         notificationManager.notify(1, notification);
     }
+
     private void exitApp() {
         stopForeground(true);
         System.exit(0);
 
     }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {

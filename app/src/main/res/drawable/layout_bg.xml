@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    >
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <solid android:color="#E6E0E4FC"/>
-    <stroke android:width="3dp" android:color="@color/md_theme_dark_surfaceTint" />
-    <corners android:topLeftRadius="20dp" android:topRightRadius="20dp"></corners>
-    <padding android:left="0dp" android:top="0dp" android:right="0dp" android:bottom="0dp" />
+    <solid android:color="#E6E0E4FC" />
+    <stroke
+        android:width="3dp"
+        android:color="@color/md_theme_dark_surfaceTint" />
+    <corners
+        android:topLeftRadius="20dp"
+        android:topRightRadius="20dp"></corners>
+    <padding
+        android:bottom="0dp"
+        android:left="0dp"
+        android:right="0dp"
+        android:top="0dp" />
 </shape>

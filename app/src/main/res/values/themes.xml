@@ -1,5 +1,5 @@
-
 <resources>
+
     <style name="AppTheme" parent="Theme.Material3.Light.NoActionBar">
         <item name="android:textColorHint">@color/md_theme_light_onSecondaryContainer</item>
         <item name="colorPrimary">@color/md_theme_light_primary</item>

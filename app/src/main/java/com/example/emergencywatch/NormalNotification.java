@@ -1,6 +1,5 @@
 package com.example.emergencywatch;
 
-import android.annotation.SuppressLint;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
@@ -9,28 +8,28 @@ import android.graphics.Color;
 import android.os.Build;
 import android.preference.PreferenceManager;
 import android.widget.RemoteViews;
+
 import androidx.core.app.NotificationCompat;
+
 import java.util.Random;
 
 public class NormalNotification {
+    private static final String CHANNEL_ID = "MyNotificationChannel";
+    public static boolean notificationsEnabled = true;
     static Random rn = new Random();
     static int range = 1000 - 1 + 1;
-    static int randomNum =  rn.nextInt(range) + 1;
-    private static final String CHANNEL_ID = "MyNotificationChannel";
+    static int randomNum = rn.nextInt(range) + 1;
     private static final int NOTIFICATION_ID = randomNum;
-
-    public static boolean notificationsEnabled = true;
-
 
     public static NotificationCompat.Builder showNotification(Context context, String title, String message, android.graphics.Bitmap icon) {
 
         //read settings
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
         boolean areNormalNotificationsEnabled = sharedPreferences.getBoolean("switch_notifications", true);
-        if(!areNormalNotificationsEnabled)
+        if (!areNormalNotificationsEnabled)
             notificationsEnabled = false;
 
-        if(notificationsEnabled) {
+        if (notificationsEnabled) {
             // Create a notification manager
             NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 

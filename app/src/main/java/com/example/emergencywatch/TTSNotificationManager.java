@@ -1,4 +1,5 @@
 package com.example.emergencywatch;
+
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -12,16 +13,12 @@ import java.util.Locale;
 
 public class TTSNotificationManager {
     private static final String CHANNEL_ID = "TTS_NOTIFICATION_CHANNEL";
-    private Context context;
-    private TextToSpeech tts;
     public static SharedPreferences sharedPreferences;
-    public static boolean notificationsEnabled = true;
+    private final Context context;
+    private TextToSpeech tts;
 
     public TTSNotificationManager(Context context) {
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
-        boolean areNormalNotificationsEnabled = sharedPreferences.getBoolean("switch_notifications", true);
-        if(!areNormalNotificationsEnabled)
-            notificationsEnabled = false;
 
         this.context = context;
         createNotificationChannel();
@@ -42,18 +39,22 @@ public class TTSNotificationManager {
     }
 
     private void initializeTextToSpeech() {
-        tts = new TextToSpeech(context, new TextToSpeech.OnInitListener() {
-            @Override
-            public void onInit(int status) {
-                if (status != TextToSpeech.ERROR) {
-                    tts.setLanguage(Locale.getDefault());
+        tts = new TextToSpeech(context, status -> {
+            if (status != TextToSpeech.ERROR) {
+                //tts.setLanguage(Locale.getDefault());
+                int result = tts.setLanguage(new Locale("ro_RO"));
+                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    // Language data is missing or not supported, handle the error
+                    System.out.println("LIPSA LIMBA CSF");
                 }
             }
         });
     }
 
     public void createTTSNotification(String text) {
-        if (notificationsEnabled) {
+        boolean areTTSNotificationsEnabled = sharedPreferences.getBoolean("switch_TTS", true);
+
+        if (areTTSNotificationsEnabled) {
             Notification.Builder notificationBuilder;
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -72,7 +73,6 @@ public class TTSNotificationManager {
             NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             int notificationId = 1;
             notificationManager.notify(notificationId, notification);
-
             // Play the TTS
             tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "TTS_NOTIFICATION");
         }
